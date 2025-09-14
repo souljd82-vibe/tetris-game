@@ -52,13 +52,14 @@
         }
 
         .login-title {
-            font-size: 2.5em;
+            font-size: 2.2em;
             font-weight: 900;
             background: linear-gradient(45deg, #00ff88, #00bfff);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             text-shadow: 0 0 30px rgba(0, 191, 255, 0.8);
             margin-bottom: 20px;
+            white-space: nowrap;
         }
 
         .login-subtitle {
@@ -142,12 +143,13 @@
         }
 
         .header h1 {
-            font-size: 2em;
+            font-size: 1.8em;
             font-weight: 900;
             background: linear-gradient(45deg, #00ff88, #00bfff);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             margin-bottom: 5px;
+            white-space: nowrap;
         }
 
         .player-info {
@@ -235,12 +237,20 @@
             text-shadow: 0 0 8px rgba(255, 255, 0, 0.8);
         }
 
-        .game-board {
+        .game-board-container {
+            position: relative;
             background: rgba(0, 0, 0, 0.8);
             border: 3px solid #00bfff;
             border-radius: 10px;
             box-shadow: 0 0 30px rgba(0, 191, 255, 0.6), inset 0 0 50px rgba(0, 191, 255, 0.1);
             order: 2;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .game-board {
+            display: block;
         }
 
         .right-panel {
@@ -529,9 +539,18 @@
                 padding: 30px 20px;
             }
 
+            .login-title {
+                font-size: 1.8em;
+            }
+
+            .header h1 {
+                font-size: 1.4em;
+            }
+
             .final-stats {
                 grid-template-columns: 1fr;
             }
+
         }
 
         /* 애니메이션 */
@@ -721,13 +740,130 @@
         .mission-notifications::-webkit-scrollbar-thumb:hover {
             background: #00cc66;
         }
+
+        /* 게임 보드 내 레벨 업 오버레이 */
+        .level-up-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 50, 0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            border-radius: 7px;
+            backdrop-filter: blur(5px);
+            z-index: 100;
+        }
+
+        .level-up-overlay-content {
+            text-align: center;
+            padding: 20px;
+            background: rgba(30, 50, 100, 0.9);
+            border: 2px solid #00bfff;
+            border-radius: 15px;
+            box-shadow: 0 0 30px rgba(0, 191, 255, 0.8);
+            animation: overlayPulse 2s ease-in-out infinite;
+        }
+
+        .level-up-overlay-title {
+            font-size: 1.8em;
+            font-weight: 900;
+            background: linear-gradient(45deg, #00ff88, #00bfff, #ffff00);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px rgba(0, 191, 255, 1);
+            margin-bottom: 10px;
+            animation: overlayTextGlow 2s ease-in-out infinite;
+        }
+
+        .level-up-overlay-number {
+            font-size: 4em;
+            font-weight: 900;
+            color: #ffff00;
+            text-shadow: 
+                0 0 15px rgba(255, 255, 0, 1),
+                0 0 30px rgba(255, 255, 0, 0.8),
+                0 0 45px rgba(255, 255, 0, 0.6);
+            margin: 10px 0;
+            animation: overlayNumberScale 2s ease-in-out infinite;
+        }
+
+        .level-up-overlay-subtitle {
+            font-size: 1.1em;
+            font-weight: 700;
+            color: #00bfff;
+            text-shadow: 0 0 15px rgba(0, 191, 255, 0.8);
+        }
+
+        @keyframes levelUpFadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes overlayPulse {
+            0%, 100% {
+                box-shadow: 0 0 20px rgba(0, 191, 255, 0.6);
+            }
+            50% {
+                box-shadow: 0 0 40px rgba(0, 191, 255, 1);
+            }
+        }
+
+        @keyframes overlayTextGlow {
+            0%, 100% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+        }
+
+        @keyframes overlayNumberScale {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.1);
+            }
+        }
+
+        @keyframes overlayFadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes overlayFadeOut {
+            from {
+                opacity: 1;
+                transform: scale(1);
+            }
+            to {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+        }
     </style>
 </head>
 <body>
     <!-- 로그인 화면 -->
     <div class="login-screen" id="loginScreen">
         <div class="login-container">
-            <div class="login-title">🏆 테트리스</div>
+            <div class="login-title">🏆 SBI테트리스</div>
             <div class="login-subtitle">
                 친구들과 함께 순위를 겨뤄보세요!<br>
                 실시간 랭킹 시스템으로 최고 점수에 도전하세요.
@@ -753,7 +889,7 @@
     <!-- 게임 화면 -->
     <div class="game-screen" id="gameScreen">
         <div class="header">
-            <h1>🎮 테트리스 멀티플레이어</h1>
+            <h1>🎮 SBI테트리스 멀티플레이어</h1>
             <div class="player-info">플레이어: <span id="currentPlayerName"></span></div>
         </div>
 
@@ -784,7 +920,17 @@
             </div>
 
             <!-- 게임 보드 -->
-            <canvas id="gameBoard" class="game-board panel" width="300" height="600"></canvas>
+            <div class="game-board-container panel">
+                <canvas id="gameBoard" class="game-board" width="300" height="600"></canvas>
+                <!-- 게임 보드 내 레벨 업 오버레이 -->
+                <div class="level-up-overlay" id="levelUpOverlay">
+                    <div class="level-up-overlay-content">
+                        <div class="level-up-overlay-title">LEVEL UP!</div>
+                        <div class="level-up-overlay-number" id="levelUpOverlayNumber">2</div>
+                        <div class="level-up-overlay-subtitle">단계 상승</div>
+                    </div>
+                </div>
+            </div>
 
             <!-- 오른쪽 패널 -->
             <div class="panel right-panel">
@@ -845,6 +991,7 @@
         </div>
     </div>
     
+
     <!-- 게임 오버 화면 -->
     <div class="game-over" id="gameOver">
         <div id="newRecordBanner" class="new-record-text" style="display: none;">
@@ -914,6 +1061,10 @@
         let lastRankingUpdate = 0;
         let lastDisplayedRank = 0;
         let rankingUpdateTimeout = null;
+
+        // 레벨 업 시스템 변수
+        let levelUpPaused = false;
+        let levelUpTimeout = null;
 
         // 순위 관리
         class RankingSystem {
@@ -1162,6 +1313,42 @@
         }
 
         const missionSystem = new MissionSystem();
+
+        // 게임 보드 내 레벨 업 오버레이 시스템
+        function showLevelUpNotification(newLevel) {
+            levelUpPaused = true;
+            
+            const levelUpOverlay = document.getElementById('levelUpOverlay');
+            const levelUpNumber = document.getElementById('levelUpOverlayNumber');
+            
+            // 레벨 번호 업데이트
+            levelUpNumber.textContent = newLevel;
+            
+            // 오버레이 표시 (페이드 인 효과)
+            levelUpOverlay.style.display = 'flex';
+            levelUpOverlay.style.animation = 'overlayFadeIn 0.3s ease-out';
+            
+            // 2초 후 자동으로 사라지고 게임 재개
+            if (levelUpTimeout) {
+                clearTimeout(levelUpTimeout);
+            }
+            
+            levelUpTimeout = setTimeout(() => {
+                hideLevelUpNotification();
+            }, 2000);
+        }
+
+        function hideLevelUpNotification() {
+            const levelUpOverlay = document.getElementById('levelUpOverlay');
+            
+            // 페이드 아웃 효과
+            levelUpOverlay.style.animation = 'overlayFadeOut 0.3s ease-in';
+            
+            setTimeout(() => {
+                levelUpOverlay.style.display = 'none';
+                levelUpPaused = false;
+            }, 300);
+        }
 
         // 모바일 감지
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -1590,6 +1777,7 @@
                 lines += linesCleared;
                 score += linesCleared * 100 * level;
                 const oldLevel = level;
+                
                 // 더 빠른 레벨업: 초반에는 5줄마다, 나중에는 8줄마다
                 if (level <= 5) {
                     level = Math.floor(lines / 5) + 1;  // 1-5레벨: 5줄마다
@@ -1599,13 +1787,16 @@
                     level = Math.floor((lines - 95) / 10) + 16; // 16+레벨: 10줄마다
                 }
                 
+                // 레벨 업 체크 및 알림 표시
+                if (level > oldLevel) {
+                    showLevelUpNotification(level);
+                    missionSystem.updateProgress('level', level);
+                }
+                
                 // 미션 진행 업데이트
                 missionSystem.updateProgress('lines', linesCleared);
                 missionSystem.updateProgress('tetris', 1, linesCleared);
                 missionSystem.updateProgress('consecutive', 1, linesCleared);
-                if (level > oldLevel) {
-                    missionSystem.updateProgress('level', level);
-                }
                 missionSystem.updateProgress('score', score);
                 
                 updateDisplay();
@@ -1834,7 +2025,8 @@
             const deltaTime = time - lastTime;
             lastTime = time;
             
-            if (gameRunning && !gamePaused) {
+            // 게임 실행 중이고 일시정지되지 않았으며 레벨업 알림도 없을 때만 게임 진행
+            if (gameRunning && !gamePaused && !levelUpPaused) {
                 dropTime += deltaTime;
                 const dropInterval = calculateDropInterval();
                 
@@ -1857,6 +2049,10 @@
                 }
                 
                 updateTimer();
+            }
+            
+            // 렌더링은 항상 수행 (게임 일시정지 중에도 화면 표시)
+            if (gameRunning) {
                 draw();
                 drawHoldPiece();
                 drawNextPieces();
@@ -1908,7 +2104,7 @@
 
         // 키보드 컨트롤
         document.addEventListener('keydown', (event) => {
-            if (!gameRunning) return;
+            if (!gameRunning || levelUpPaused) return;
             
             switch (event.key.toLowerCase()) {
                 case 'arrowleft':
