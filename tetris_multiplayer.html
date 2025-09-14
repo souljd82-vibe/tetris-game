@@ -1,0 +1,1950 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>테트리스 온라인 - 멀티플레이어 랭킹</title>
+    <meta name="description" content="친구들과 함께 테트리스 순위를 겨뤄보세요! 실시간 랭킹 시스템과 개인 기록 관리 기능 제공.">
+    <meta name="keywords" content="테트리스, 멀티플레이어, 순위, 랭킹, 온라인게임">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏆</text></svg>">
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 25%, #0f3460 50%, #533483 75%, #7209b7 100%);
+            color: white;
+            font-family: 'Orbitron', monospace;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow-x: hidden;
+        }
+
+        /* 로그인 화면 */
+        .login-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            z-index: 1000;
+        }
+
+        .login-container {
+            background: rgba(30, 50, 100, 0.3);
+            border: 3px solid #00bfff;
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(0, 191, 255, 0.6);
+            backdrop-filter: blur(15px);
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .login-title {
+            font-size: 2.5em;
+            font-weight: 900;
+            background: linear-gradient(45deg, #00ff88, #00bfff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(0, 191, 255, 0.8);
+            margin-bottom: 20px;
+        }
+
+        .login-subtitle {
+            font-size: 1.1em;
+            color: #88ccff;
+            margin-bottom: 30px;
+            line-height: 1.5;
+        }
+
+        .input-group {
+            margin-bottom: 25px;
+        }
+
+        .input-label {
+            display: block;
+            font-size: 14px;
+            color: #00bfff;
+            margin-bottom: 8px;
+            text-align: left;
+        }
+
+        .player-input {
+            width: 100%;
+            padding: 12px 15px;
+            font-size: 16px;
+            border: 2px solid #00bfff;
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            font-family: 'Orbitron', monospace;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .player-input:focus {
+            outline: none;
+            border-color: #00ff88;
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.5);
+        }
+
+        .start-btn {
+            background: linear-gradient(45deg, #00bfff, #0080ff);
+            color: white;
+            border: 2px solid #00bfff;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-family: 'Orbitron', monospace;
+            font-weight: 700;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+            box-shadow: 0 0 20px rgba(0, 191, 255, 0.6);
+            transition: all 0.3s;
+            width: 100%;
+        }
+
+        .start-btn:hover {
+            background: linear-gradient(45deg, #0080ff, #00bfff);
+            box-shadow: 0 0 30px rgba(0, 191, 255, 1);
+            transform: scale(1.05);
+        }
+
+        .start-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* 게임 화면 */
+        .game-screen {
+            display: none;
+            width: 100%;
+            max-width: 1200px;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            font-size: 2em;
+            font-weight: 900;
+            background: linear-gradient(45deg, #00ff88, #00bfff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 5px;
+        }
+
+        .player-info {
+            font-size: 1.1em;
+            color: #ffff00;
+            text-shadow: 0 0 10px rgba(255, 255, 0, 0.8);
+        }
+
+        .game-container {
+            display: flex;
+            gap: 15px;
+            align-items: flex-start;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .panel {
+            background: rgba(30, 50, 100, 0.3);
+            border: 2px solid #00bfff;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 191, 255, 0.5), inset 0 0 20px rgba(0, 191, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .left-panel {
+            width: 160px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            order: 1;
+        }
+
+        .mode-display {
+            text-align: center;
+            background: linear-gradient(45deg, #00ff88, #00bfff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 900;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        .hold-section, .stats {
+            text-align: center;
+        }
+
+        .section-title {
+            font-size: 12px;
+            color: #00bfff;
+            margin-bottom: 8px;
+            text-shadow: 0 0 10px rgba(0, 191, 255, 0.8);
+        }
+
+        .hold-preview {
+            width: 70px;
+            height: 50px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #00bfff;
+            border-radius: 5px;
+            margin: 0 auto;
+        }
+
+        .stats {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .stat-label {
+            font-size: 11px;
+            color: #88ccff;
+        }
+
+        .stat-value {
+            font-size: 13px;
+            color: #ffff00;
+            font-weight: 700;
+            text-shadow: 0 0 8px rgba(255, 255, 0, 0.8);
+        }
+
+        .game-board {
+            background: rgba(0, 0, 0, 0.8);
+            border: 3px solid #00bfff;
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(0, 191, 255, 0.6), inset 0 0 50px rgba(0, 191, 255, 0.1);
+            order: 2;
+        }
+
+        .right-panel {
+            width: 200px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            order: 3;
+        }
+
+        .timer-display {
+            text-align: center;
+            font-size: 20px;
+            font-weight: 900;
+            color: #ffff00;
+            text-shadow: 0 0 15px rgba(255, 255, 0, 1);
+            background: rgba(0, 0, 0, 0.3);
+            padding: 8px;
+            border-radius: 8px;
+            border: 1px solid #00bfff;
+        }
+
+        .next-pieces {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .next-piece {
+            width: 55px;
+            height: 40px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #00bfff;
+            border-radius: 5px;
+        }
+
+        .score-section {
+            background: rgba(0, 100, 200, 0.3);
+            border: 2px solid #00bfff;
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+            box-shadow: 0 0 15px rgba(0, 191, 255, 0.4);
+        }
+
+        .score-main {
+            font-size: 22px;
+            font-weight: 900;
+            color: #ffff00;
+            text-shadow: 0 0 20px rgba(255, 255, 0, 1);
+            margin-bottom: 8px;
+        }
+
+        /* 순위표 패널 */
+        .ranking-panel {
+            width: 250px;
+            padding: 15px;
+            order: 4;
+            max-height: 600px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .ranking-title {
+            text-align: center;
+            font-size: 16px;
+            font-weight: 900;
+            background: linear-gradient(45deg, #ffff00, #ff8800);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 15px;
+        }
+
+        .ranking-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex: 1;
+            overflow-y: auto;
+            max-height: 400px;
+        }
+
+        .rank-item {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid #00bfff;
+            border-radius: 8px;
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.3s;
+        }
+
+        .rank-item.current-player {
+            border-color: #00ff88;
+            background: rgba(0, 255, 136, 0.1);
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.3);
+        }
+
+        .rank-position {
+            font-size: 14px;
+            font-weight: 900;
+            color: #ffff00;
+            min-width: 25px;
+        }
+
+        .rank-position.first { color: #ffd700; }
+        .rank-position.second { color: #c0c0c0; }
+        .rank-position.third { color: #cd7f32; }
+
+        .rank-info {
+            flex: 1;
+            margin: 0 10px;
+        }
+
+        .rank-name {
+            font-size: 12px;
+            color: #88ccff;
+            font-weight: 700;
+        }
+
+        .rank-score {
+            font-size: 11px;
+            color: #ffff00;
+        }
+
+        .rank-stats {
+            font-size: 10px;
+            color: #666;
+            text-align: right;
+        }
+
+        /* 게임 오버 화면 */
+        .game-over {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 50, 0.95);
+            border: 3px solid #00bfff;
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            display: none;
+            z-index: 1000;
+            box-shadow: 0 0 50px rgba(0, 191, 255, 0.8);
+            max-width: 90%;
+        }
+
+        .game-over.new-record {
+            border-color: #ffd700;
+            box-shadow: 0 0 50px rgba(255, 215, 0, 0.8);
+        }
+
+        .new-record-text {
+            color: #ffd700;
+            font-size: 20px;
+            font-weight: 900;
+            margin-bottom: 15px;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 1);
+        }
+
+        .final-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .final-stat {
+            background: rgba(0, 100, 200, 0.3);
+            border: 1px solid #00bfff;
+            border-radius: 8px;
+            padding: 10px;
+        }
+
+        .final-stat-label {
+            font-size: 12px;
+            color: #88ccff;
+        }
+
+        .final-stat-value {
+            font-size: 18px;
+            font-weight: 900;
+            color: #ffff00;
+        }
+
+        .restart-btn, .menu-btn {
+            background: linear-gradient(45deg, #00bfff, #0080ff);
+            color: white;
+            border: 2px solid #00bfff;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 10px;
+            font-family: 'Orbitron', monospace;
+            font-weight: 700;
+            transition: all 0.3s;
+        }
+
+        .menu-btn {
+            background: linear-gradient(45deg, #666, #888);
+            border-color: #666;
+        }
+
+        .restart-btn:hover, .menu-btn:hover {
+            transform: scale(1.05);
+        }
+
+        /* 모바일 컨트롤 */
+        .mobile-controls {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 50, 0.9);
+            border-top: 2px solid #00bfff;
+            padding: 15px;
+            z-index: 1000;
+        }
+
+        .control-row {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .control-btn {
+            background: linear-gradient(45deg, #00bfff, #0080ff);
+            color: white;
+            border: 1px solid #00bfff;
+            padding: 15px 20px;
+            border-radius: 8px;
+            font-family: 'Orbitron', monospace;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            touch-action: manipulation;
+            user-select: none;
+            transition: all 0.2s;
+        }
+
+        .control-btn:active {
+            transform: scale(0.95);
+        }
+
+        .control-btn.wide {
+            flex: 1;
+            max-width: 120px;
+        }
+
+        /* 반응형 디자인 */
+        @media (max-width: 768px) {
+            .game-container {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .left-panel, .right-panel, .ranking-panel {
+                width: 100%;
+                max-width: 300px;
+                order: 3;
+            }
+
+            .ranking-panel {
+                max-height: 300px;
+                order: 4;
+            }
+
+            .game-board {
+                order: 1;
+                transform: scale(0.9);
+            }
+
+            .mobile-controls {
+                display: block;
+            }
+
+            .login-container {
+                margin: 20px;
+                padding: 30px 20px;
+            }
+
+            .final-stats {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* 애니메이션 */
+        @keyframes glow {
+            0% { box-shadow: 0 0 20px rgba(0, 191, 255, 0.5); }
+            50% { box-shadow: 0 0 40px rgba(0, 191, 255, 0.8); }
+            100% { box-shadow: 0 0 20px rgba(0, 191, 255, 0.5); }
+        }
+
+        .panel {
+            animation: glow 3s ease-in-out infinite;
+        }
+
+        @keyframes slideInUp {
+            from {
+                transform: translateY(30px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .rank-item {
+            animation: slideInUp 0.5s ease-out;
+        }
+
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.2em;
+            color: #00bfff;
+            z-index: 1001;
+        }
+
+        /* 순위표 스크롤바 */
+        .ranking-panel::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .ranking-panel::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 3px;
+        }
+
+        .ranking-panel::-webkit-scrollbar-thumb {
+            background: #00bfff;
+            border-radius: 3px;
+        }
+
+        .ranking-panel::-webkit-scrollbar-thumb:hover {
+            background: #0080ff;
+        }
+
+        /* 미션 시스템 스타일 */
+        .mission-section {
+            background: rgba(0, 100, 200, 0.3);
+            border: 2px solid #00bfff;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+            text-align: center;
+            box-shadow: 0 0 15px rgba(0, 191, 255, 0.4);
+        }
+
+        .current-mission {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .mission-title {
+            font-size: 14px;
+            font-weight: 900;
+            color: #00ff88;
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.8);
+        }
+
+        .mission-desc {
+            font-size: 11px;
+            color: #88ccff;
+            line-height: 1.3;
+        }
+
+        .mission-progress {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid #00bfff;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff88, #00bfff);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.6);
+        }
+
+        .progress-text {
+            font-size: 10px;
+            color: #ffff00;
+            font-weight: 700;
+        }
+
+        .mission-reward {
+            font-size: 10px;
+            color: #ffd700;
+            font-weight: 700;
+            text-shadow: 0 0 8px rgba(255, 215, 0, 0.8);
+        }
+
+        /* 미션 완료 알림 영역 */
+        .mission-notifications {
+            margin-top: 10px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .mission-complete-item {
+            background: linear-gradient(45deg, #00ff88, #00bfff);
+            color: #000;
+            padding: 8px;
+            border-radius: 6px;
+            margin-bottom: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            text-align: center;
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.6);
+            animation: missionSlideIn 0.5s ease-out;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .mission-complete-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .mission-complete-title {
+            font-size: 12px;
+            margin-bottom: 2px;
+        }
+
+        .mission-complete-reward {
+            font-size: 10px;
+            color: #004400;
+            font-weight: 900;
+        }
+
+        @keyframes missionSlideIn {
+            from {
+                transform: translateX(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* 미션 알림 스크롤바 */
+        .mission-notifications::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .mission-notifications::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 2px;
+        }
+
+        .mission-notifications::-webkit-scrollbar-thumb {
+            background: #00ff88;
+            border-radius: 2px;
+        }
+
+        .mission-notifications::-webkit-scrollbar-thumb:hover {
+            background: #00cc66;
+        }
+    </style>
+</head>
+<body>
+    <!-- 로그인 화면 -->
+    <div class="login-screen" id="loginScreen">
+        <div class="login-container">
+            <div class="login-title">🏆 테트리스</div>
+            <div class="login-subtitle">
+                친구들과 함께 순위를 겨뤄보세요!<br>
+                실시간 랭킹 시스템으로 최고 점수에 도전하세요.
+            </div>
+            
+            <div class="input-group">
+                <label class="input-label" for="playerName">플레이어 이름</label>
+                <input type="text" id="playerName" class="player-input" 
+                       placeholder="닉네임을 입력하세요 (2-10자)" 
+                       maxlength="10" autocomplete="off">
+            </div>
+            
+            <button class="start-btn" id="startBtn" onclick="startGame()">
+                🎮 게임 시작
+            </button>
+            
+            <div style="margin-top: 20px; font-size: 12px; color: #666;">
+                기록은 브라우저에 로컬 저장됩니다
+            </div>
+        </div>
+    </div>
+
+    <!-- 게임 화면 -->
+    <div class="game-screen" id="gameScreen">
+        <div class="header">
+            <h1>🎮 테트리스 멀티플레이어</h1>
+            <div class="player-info">플레이어: <span id="currentPlayerName"></span></div>
+        </div>
+
+        <div class="game-container">
+            <!-- 왼쪽 패널 -->
+            <div class="panel left-panel">
+                <div class="mode-display">마라톤</div>
+                
+                <div class="hold-section">
+                    <div class="section-title">HOLD</div>
+                    <canvas id="holdPiece" class="hold-preview" width="70" height="50"></canvas>
+                </div>
+                
+                <div class="stats">
+                    <div class="stat-row">
+                        <span class="stat-label">LINE</span>
+                        <span class="stat-value" id="lines">0</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">LEVEL</span>
+                        <span class="stat-value" id="level">1</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">RANK</span>
+                        <span class="stat-value" id="currentRank">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 게임 보드 -->
+            <canvas id="gameBoard" class="game-board panel" width="300" height="600"></canvas>
+
+            <!-- 오른쪽 패널 -->
+            <div class="panel right-panel">
+                <div class="timer-display" id="timer">00:00</div>
+                
+                <div class="next-section">
+                    <div class="section-title">NEXT</div>
+                    <div class="next-pieces">
+                        <canvas id="nextPiece1" class="next-piece" width="55" height="40"></canvas>
+                        <canvas id="nextPiece2" class="next-piece" width="55" height="40"></canvas>
+                        <canvas id="nextPiece3" class="next-piece" width="55" height="40"></canvas>
+                        <canvas id="nextPiece4" class="next-piece" width="55" height="40"></canvas>
+                    </div>
+                </div>
+                
+                <!-- 미션 섹션 -->
+                <div class="mission-section">
+                    <div class="section-title">MISSION</div>
+                    <div id="currentMission" class="current-mission">
+                        <div class="mission-title">미션 로딩 중...</div>
+                    </div>
+                </div>
+                
+                <div class="score-section">
+                    <div class="section-title">SCORE</div>
+                    <div class="score-main" id="score">0</div>
+                    <div style="font-size: 10px; color: #88ccff;">개인 최고: <span id="personalBest">0</span></div>
+                </div>
+            </div>
+
+            <!-- 순위표 패널 -->
+            <div class="panel ranking-panel">
+                <div class="ranking-title">🏆 실시간 순위</div>
+                <div class="ranking-list" id="rankingList">
+                    <!-- 순위 항목들이 여기에 동적으로 추가됩니다 -->
+                </div>
+                
+                <!-- 미션 완료 알림 영역 -->
+                <div class="mission-notifications" id="missionNotifications">
+                    <!-- 미션 완료 알림들이 여기에 표시됩니다 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 모바일 컨트롤 -->
+    <div class="mobile-controls">
+        <div class="control-row">
+            <button class="control-btn" id="rotateBtn">↻</button>
+            <button class="control-btn wide" id="holdBtn">HOLD</button>
+            <button class="control-btn" id="pauseBtn">⏸</button>
+        </div>
+        <div class="control-row">
+            <button class="control-btn" id="leftBtn">←</button>
+            <button class="control-btn" id="downBtn">↓</button>
+            <button class="control-btn wide" id="dropBtn">DROP</button>
+            <button class="control-btn" id="rightBtn">→</button>
+        </div>
+    </div>
+    
+    <!-- 게임 오버 화면 -->
+    <div class="game-over" id="gameOver">
+        <div id="newRecordBanner" class="new-record-text" style="display: none;">
+            🎉 새로운 기록 달성! 🎉
+        </div>
+        <h2 style="color: #00bfff; margin-bottom: 20px;">게임 종료!</h2>
+        
+        <div class="final-stats">
+            <div class="final-stat">
+                <div class="final-stat-label">최종 점수</div>
+                <div class="final-stat-value" id="finalScore">0</div>
+            </div>
+            <div class="final-stat">
+                <div class="final-stat-label">완료 라인</div>
+                <div class="final-stat-value" id="finalLines">0</div>
+            </div>
+            <div class="final-stat">
+                <div class="final-stat-label">플레이 시간</div>
+                <div class="final-stat-value" id="finalTime">00:00</div>
+            </div>
+            <div class="final-stat">
+                <div class="final-stat-label">최종 순위</div>
+                <div class="final-stat-value" id="finalRank">#-</div>
+            </div>
+        </div>
+
+        <button class="restart-btn" onclick="restartGame()">다시 플레이</button>
+        <button class="menu-btn" onclick="returnToMenu()">메인 메뉴</button>
+    </div>
+
+    <script>
+        // 게임 설정
+        const BOARD_WIDTH = 10;
+        const BOARD_HEIGHT = 20;
+        const BLOCK_SIZE = 30;
+
+        // 전역 변수
+        let currentPlayer = '';
+        let canvas, ctx, holdCanvas, holdCtx;
+        let nextCanvases = [];
+        let nextContexts = [];
+
+        // 게임 상태
+        let board = [];
+        let currentPiece = null;
+        let nextPieces = [];
+        let heldPiece = null;
+        let canHold = true;
+        let score = 0;
+        let level = 1;
+        let lines = 0;
+        let gameRunning = false;
+        let gamePaused = false;
+        let dropTime = 0;
+        let lastTime = 0;
+        let gameStartTime = 0;
+
+        // 미션 시스템 변수
+        let currentMission = null;
+        let missionProgress = 0;
+        let completedMissions = [];
+        let consecutiveLines = 0;
+        let perfectDropCount = 0;
+        let holdUsageCount = 0;
+
+        // 순위 업데이트 최적화 변수
+        let lastRankingUpdate = 0;
+        let lastDisplayedRank = 0;
+        let rankingUpdateTimeout = null;
+
+        // 순위 관리
+        class RankingSystem {
+            constructor() {
+                this.rankings = this.loadRankings();
+            }
+
+            loadRankings() {
+                const saved = localStorage.getItem('tetris_rankings');
+                return saved ? JSON.parse(saved) : [];
+            }
+
+            saveRankings() {
+                localStorage.setItem('tetris_rankings', JSON.stringify(this.rankings));
+            }
+
+            addScore(playerName, score, lines, level, playTime) {
+                const newRecord = {
+                    name: playerName,
+                    score: score,
+                    lines: lines,
+                    level: level,
+                    playTime: playTime,
+                    date: new Date().toLocaleDateString(),
+                    timestamp: Date.now()
+                };
+
+                this.rankings.push(newRecord);
+                this.rankings.sort((a, b) => b.score - a.score);
+                this.rankings = this.rankings.slice(0, 100); // 상위 100명만 유지
+                this.saveRankings();
+
+                return this.getCurrentRank(playerName, score);
+            }
+
+            getCurrentRank(playerName, currentScore) {
+                const rank = this.rankings.findIndex(r => r.score <= currentScore) + 1;
+                return rank || this.rankings.length + 1;
+            }
+
+            getPlayerBest(playerName) {
+                const playerRecords = this.rankings.filter(r => r.name === playerName);
+                return playerRecords.length > 0 ? playerRecords[0].score : 0;
+            }
+
+            getTopRankings(limit = 10) {
+                return this.rankings.slice(0, limit);
+            }
+
+            isNewPersonalBest(playerName, score) {
+                const currentBest = this.getPlayerBest(playerName);
+                return score > currentBest;
+            }
+        }
+
+        const rankingSystem = new RankingSystem();
+
+        // 미션 시스템 클래스
+        class MissionSystem {
+            constructor() {
+                this.missions = [
+                    // 초급 미션들 (레벨 1-5)
+                    { id: 1, name: "첫 걸음", description: "라인 5줄 완성하기", type: "lines", target: 5, reward: 500, level: 1 },
+                    { id: 2, name: "속도왕 지망생", description: "하드드롭 10회 사용하기", type: "hardDrop", target: 10, reward: 300, level: 2 },
+                    { id: 3, name: "홀드 마스터", description: "홀드 기능 5회 사용하기", type: "hold", target: 5, reward: 400, level: 2 },
+                    { id: 4, name: "연속 타격", description: "연속으로 라인 3번 완성하기", type: "consecutive", target: 3, reward: 800, level: 3 },
+                    { id: 5, name: "레벨업!", description: "레벨 5에 도달하기", type: "level", target: 5, reward: 1000, level: 5 },
+                    
+                    // 중급 미션들 (레벨 6-15)
+                    { id: 6, name: "라인 청소부", description: "한 번에 라인 20줄 완성하기", type: "lines", target: 20, reward: 1500, level: 6 },
+                    { id: 7, name: "테트리스 마스터", description: "테트리스(4줄) 3회 달성하기", type: "tetris", target: 3, reward: 2000, level: 8 },
+                    { id: 8, name: "속도의 신", description: "레벨 10에 도달하기", type: "level", target: 10, reward: 2500, level: 10 },
+                    { id: 9, name: "완벽한 컨트롤", description: "연속으로 라인 7번 완성하기", type: "consecutive", target: 7, reward: 3000, level: 12 },
+                    { id: 10, name: "점수 헌터", description: "점수 50,000점 달성하기", type: "score", target: 50000, reward: 2000, level: 15 },
+                    
+                    // 고급 미션들 (레벨 16+)
+                    { id: 11, name: "극한의 속도", description: "레벨 20에 도달하기", type: "level", target: 20, reward: 5000, level: 20 },
+                    { id: 12, name: "테트리스 전설", description: "테트리스(4줄) 7회 달성하기", type: "tetris", target: 7, reward: 7000, level: 22 },
+                    { id: 13, name: "완벽한 집중력", description: "연속으로 라인 15번 완성하기", type: "consecutive", target: 15, reward: 8000, level: 25 },
+                    { id: 14, name: "점수 마니아", description: "점수 150,000점 달성하기", type: "score", target: 150000, reward: 10000, level: 30 },
+                    { id: 15, name: "테트리스 신", description: "레벨 30에 도달하기", type: "level", target: 30, reward: 15000, level: 30 }
+                ];
+                this.resetMissionData();
+            }
+
+            resetMissionData() {
+                this.tetrisCount = 0;
+                this.hardDropCount = 0;
+                this.holdCount = 0;
+                this.consecutiveLines = 0;
+                this.maxConsecutiveLines = 0;
+            }
+
+            getAvailableMission() {
+                const availableMissions = this.missions.filter(mission => 
+                    !completedMissions.includes(mission.id) && 
+                    level >= mission.level
+                );
+                
+                if (availableMissions.length === 0) return null;
+                return availableMissions[0]; // 첫 번째 가능한 미션 반환
+            }
+
+            updateProgress(type, value = 1, linesCleared = 0) {
+                if (!currentMission) return;
+
+                switch (type) {
+                    case 'lines':
+                        if (currentMission.type === 'lines') {
+                            missionProgress += value;
+                        }
+                        break;
+                    case 'level':
+                        if (currentMission.type === 'level' && value >= currentMission.target) {
+                            missionProgress = currentMission.target;
+                        }
+                        break;
+                    case 'score':
+                        if (currentMission.type === 'score' && value >= currentMission.target) {
+                            missionProgress = currentMission.target;
+                        }
+                        break;
+                    case 'hardDrop':
+                        this.hardDropCount++;
+                        if (currentMission.type === 'hardDrop') {
+                            missionProgress = this.hardDropCount;
+                        }
+                        break;
+                    case 'hold':
+                        this.holdCount++;
+                        if (currentMission.type === 'hold') {
+                            missionProgress = this.holdCount;
+                        }
+                        break;
+                    case 'tetris':
+                        if (linesCleared === 4) {
+                            this.tetrisCount++;
+                            if (currentMission.type === 'tetris') {
+                                missionProgress = this.tetrisCount;
+                            }
+                        }
+                        break;
+                    case 'consecutive':
+                        if (linesCleared > 0) {
+                            this.consecutiveLines++;
+                            this.maxConsecutiveLines = Math.max(this.maxConsecutiveLines, this.consecutiveLines);
+                        } else {
+                            this.consecutiveLines = 0;
+                        }
+                        if (currentMission.type === 'consecutive') {
+                            missionProgress = this.maxConsecutiveLines;
+                        }
+                        break;
+                }
+
+                this.checkMissionComplete();
+                this.updateMissionDisplay();
+            }
+
+            checkMissionComplete() {
+                if (!currentMission || missionProgress < currentMission.target) return;
+
+                // 미션 완료!
+                completedMissions.push(currentMission.id);
+                score += currentMission.reward;
+                
+                // 미션 완료 알림
+                this.showMissionCompleteNotification(currentMission);
+                
+                // 다음 미션 할당
+                currentMission = this.getAvailableMission();
+                missionProgress = 0;
+                
+                updateDisplay();
+                updateCurrentRank();
+            }
+
+            showMissionCompleteNotification(mission) {
+                const notificationArea = document.getElementById('missionNotifications');
+                if (!notificationArea) return;
+
+                // 미션 완료 알림 요소 생성
+                const notificationItem = document.createElement('div');
+                notificationItem.className = 'mission-complete-item';
+                notificationItem.innerHTML = `
+                    <div class="mission-complete-title">🎉 ${mission.name} 완료!</div>
+                    <div class="mission-complete-reward">+${mission.reward.toLocaleString()}점 획득</div>
+                `;
+
+                // 맨 위에 추가 (최신 알림이 위로)
+                notificationArea.insertBefore(notificationItem, notificationArea.firstChild);
+
+                // 알림이 너무 많으면 오래된 것 제거 (최대 5개 유지)
+                const items = notificationArea.querySelectorAll('.mission-complete-item');
+                if (items.length > 5) {
+                    notificationArea.removeChild(items[items.length - 1]);
+                }
+
+                // 5초 후 자동 제거
+                setTimeout(() => {
+                    if (notificationItem.parentNode === notificationArea) {
+                        notificationItem.style.opacity = '0.5';
+                        notificationItem.style.transform = 'scale(0.9)';
+                        notificationItem.style.transition = 'all 0.3s ease-out';
+                    }
+                }, 5000);
+
+                // 10초 후 완전 제거
+                setTimeout(() => {
+                    if (notificationItem.parentNode === notificationArea) {
+                        notificationArea.removeChild(notificationItem);
+                    }
+                }, 10000);
+            }
+
+            updateMissionDisplay() {
+                const missionElement = document.getElementById('currentMission');
+                if (!missionElement) return;
+
+                if (currentMission) {
+                    missionElement.innerHTML = `
+                        <div class="mission-title">${currentMission.name}</div>
+                        <div class="mission-desc">${currentMission.description}</div>
+                        <div class="mission-progress">
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: ${(missionProgress / currentMission.target * 100)}%"></div>
+                            </div>
+                            <div class="progress-text">${missionProgress} / ${currentMission.target}</div>
+                        </div>
+                        <div class="mission-reward">보상: +${currentMission.reward}점</div>
+                    `;
+                } else {
+                    missionElement.innerHTML = `
+                        <div class="mission-title">미션 없음</div>
+                        <div class="mission-desc">모든 미션을 완료했습니다!</div>
+                    `;
+                }
+            }
+
+            initializeMission() {
+                currentMission = this.getAvailableMission();
+                missionProgress = 0;
+                this.resetMissionData();
+                this.updateMissionDisplay();
+            }
+        }
+
+        const missionSystem = new MissionSystem();
+
+        // 모바일 감지
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+        // 페이지 로딩
+        window.addEventListener('load', function() {
+            initializeUI();
+            loadPlayerName();
+            updateRankingDisplay();
+        });
+
+        function initializeUI() {
+            // Canvas 초기화
+            canvas = document.getElementById('gameBoard');
+            ctx = canvas.getContext('2d');
+            holdCanvas = document.getElementById('holdPiece');
+            holdCtx = holdCanvas.getContext('2d');
+
+            nextCanvases = [
+                document.getElementById('nextPiece1'),
+                document.getElementById('nextPiece2'),
+                document.getElementById('nextPiece3'),
+                document.getElementById('nextPiece4')
+            ];
+            nextContexts = nextCanvases.map(canvas => canvas.getContext('2d'));
+
+            // 입력 필드 이벤트
+            const playerInput = document.getElementById('playerName');
+            const startBtn = document.getElementById('startBtn');
+
+            playerInput.addEventListener('input', function() {
+                const name = this.value.trim();
+                startBtn.disabled = name.length < 2;
+                if (name.length >= 2) {
+                    localStorage.setItem('tetris_last_player', name);
+                }
+            });
+
+            playerInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && this.value.trim().length >= 2) {
+                    startGame();
+                }
+            });
+
+            // 모바일 컨트롤 설정
+            if (isMobile) {
+                setupMobileControls();
+            }
+        }
+
+        function loadPlayerName() {
+            const lastPlayer = localStorage.getItem('tetris_last_player');
+            if (lastPlayer) {
+                document.getElementById('playerName').value = lastPlayer;
+                document.getElementById('startBtn').disabled = false;
+            }
+        }
+
+        function startGame() {
+            const playerName = document.getElementById('playerName').value.trim();
+            
+            if (playerName.length < 2) {
+                alert('닉네임을 2자 이상 입력해주세요!');
+                return;
+            }
+
+            currentPlayer = playerName;
+            document.getElementById('currentPlayerName').textContent = currentPlayer;
+            
+            // 개인 최고 기록 표시
+            const personalBest = rankingSystem.getPlayerBest(currentPlayer);
+            document.getElementById('personalBest').textContent = personalBest.toLocaleString();
+
+            // 화면 전환
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('gameScreen').style.display = 'block';
+
+            initializeGame();
+        }
+
+        function returnToMenu() {
+            document.getElementById('gameScreen').style.display = 'none';
+            document.getElementById('loginScreen').style.display = 'flex';
+            document.getElementById('gameOver').style.display = 'none';
+            gameRunning = false;
+        }
+
+        function initializeGame() {
+            initBoard();
+            initNextPieces();
+            score = 0;
+            level = 1;
+            lines = 0;
+            dropTime = 0;
+            heldPiece = null;
+            canHold = true;
+            currentPiece = getNextPiece();
+            gameRunning = true;
+            gamePaused = false;
+            gameStartTime = Date.now();
+            
+            // 미션 시스템 초기화
+            completedMissions = [];
+            missionSystem.initializeMission();
+            
+            updateDisplay();
+            updateCurrentRank();
+            gameLoop();
+        }
+
+        // 확장된 테트로미노 정의 (기존 7개 + 새로운 5개)
+        const TETROMINOES = {
+            // 기존 클래식 피스들
+            I: [[[1, 1, 1, 1]], [[1], [1], [1], [1]]],
+            O: [[[1, 1], [1, 1]]],
+            T: [[[0, 1, 0], [1, 1, 1]], [[1, 0], [1, 1], [1, 0]], [[1, 1, 1], [0, 1, 0]], [[0, 1], [1, 1], [0, 1]]],
+            S: [[[0, 1, 1], [1, 1, 0]], [[1, 0], [1, 1], [0, 1]]],
+            Z: [[[1, 1, 0], [0, 1, 1]], [[0, 1], [1, 1], [1, 0]]],
+            J: [[[1, 0, 0], [1, 1, 1]], [[1, 1], [1, 0], [1, 0]], [[1, 1, 1], [0, 0, 1]], [[0, 1], [0, 1], [1, 1]]],
+            L: [[[0, 0, 1], [1, 1, 1]], [[1, 0], [1, 0], [1, 1]], [[1, 1, 1], [1, 0, 0]], [[1, 1], [0, 1], [0, 1]]],
+            
+            // 새로운 피스들 (5개 추가) - 회전 완전히 정의
+            // X 모양 (플러스) - 회전해도 같은 모양
+            X: [
+                [[0, 1, 0], [1, 1, 1], [0, 1, 0]], 
+                [[0, 1, 0], [1, 1, 1], [0, 1, 0]], 
+                [[0, 1, 0], [1, 1, 1], [0, 1, 0]], 
+                [[0, 1, 0], [1, 1, 1], [0, 1, 0]]
+            ],
+            
+            // U 모양 - 4방향 회전 정의 (진짜 U 형태 유지)
+            U: [
+                [[1, 0, 1], [1, 1, 1]], // 0도: ∪ 모양 (위가 열린 U)
+                [[1, 1], [1, 0], [1, 1]], // 90도: ㅏ 모양 (오른쪽이 열린 U)
+                [[1, 1, 1], [1, 0, 1]], // 180도: ∩ 모양 (아래가 열린 U)
+                [[1, 1], [0, 1], [1, 1]]  // 270도: ㅓ 모양 (왼쪽이 열린 U)
+            ],
+            
+            // Y 모양 - 4방향 회전 정의 (진짜 Y 형태 유지)
+            Y: [
+                [[0, 1, 0], [1, 1, 0], [0, 1, 0]], // 0도: ㅓ 모양 (오른쪽 Y)
+                [[0, 1, 0], [1, 1, 1]]            , // 90도: ㅗ 모양 (위쪽 Y)
+                [[0, 1, 0], [0, 1, 1], [0, 1, 0]], // 180도: ㅏ 모양 (왼쪽 Y)
+                [[1, 1, 1], [0, 1, 0]]             // 270도: ㅜ 모양 (아래쪽 Y)
+            ],
+            
+            // P 모양 - 4방향 회전 정의 (진짜 P 형태 유지: L + 사각형)
+            P: [
+                [[1, 1], [1, 1], [1, 0]], // 0도: P 모양 (세로 L에 위쪽 사각형)
+                [[1, 1, 1], [0, 1, 1]], // 90도: P 회전 (가로 L에 오른쪽 사각형)
+                [[0, 1], [1, 1], [1, 1]], // 180도: P 회전 (세로 L에 아래쪽 사각형)
+                [[1, 1, 0], [1, 1, 1]]  // 270도: P 회전 (가로 L에 왼쪽 사각형)
+            ],
+            
+            // W 모양 - 2방향만 (S/Z와 유사, 지그재그)
+            W: [
+                [[1, 0, 0], [1, 1, 0], [0, 1, 1]], // 기본 (왼쪽 상단에서 오른쪽 하단으로)
+                [[0, 1, 1], [1, 1, 0], [1, 0, 0]]  // 90/270도 회전
+            ]
+        };
+
+        const COLORS = {
+            // 기존 컬러
+            I: { main: '#00f5f5', light: '#66ffff', dark: '#00a5a5' },
+            O: { main: '#ffff00', light: '#ffff66', dark: '#cccc00' },
+            T: { main: '#a500ff', light: '#cc66ff', dark: '#7700cc' },
+            S: { main: '#00ff00', light: '#66ff66', dark: '#00cc00' },
+            Z: { main: '#ff0000', light: '#ff6666', dark: '#cc0000' },
+            J: { main: '#0000ff', light: '#6666ff', dark: '#0000cc' },
+            L: { main: '#ff8800', light: '#ffaa66', dark: '#cc6600' },
+            
+            // 새로운 피스 컬러
+            X: { main: '#ff00ff', light: '#ff66ff', dark: '#cc00cc' }, // 마젠타
+            U: { main: '#00ffff', light: '#66ffff', dark: '#00cccc' }, // 시안
+            Y: { main: '#ffaa00', light: '#ffcc66', dark: '#cc8800' }, // 오렌지
+            P: { main: '#aa00ff', light: '#cc66ff', dark: '#8800cc' }, // 퍼플
+            W: { main: '#88ff88', light: '#aaffaa', dark: '#66cc66' }  // 라이트 그린
+        };
+
+        // 게임 로직 (기존과 유사하지만 순위 업데이트 추가)
+        function initBoard() {
+            board = Array(BOARD_HEIGHT).fill().map(() => Array(BOARD_WIDTH).fill(0));
+        }
+
+        function createPiece() {
+            // 가중치가 적용된 피스 생성 (클래식 피스들이 더 자주 나옴)
+            const piecePool = [
+                // 클래식 피스들 (각각 3번씩)
+                'I', 'I', 'I',  // I 피스 (일자) - 가장 중요하므로 3개
+                'O', 'O', 'O',  // O 피스
+                'T', 'T', 'T',  // T 피스
+                'S', 'S', 'S',  // S 피스
+                'Z', 'Z', 'Z',  // Z 피스
+                'J', 'J', 'J',  // J 피스
+                'L', 'L', 'L',  // L 피스
+                
+                // 새로운 피스들 (각각 1번씩)
+                'X',  // X 피스
+                'U',  // U 피스
+                'Y',  // Y 피스
+                'P',  // P 피스
+                'W'   // W 피스
+            ];
+            
+            const type = piecePool[Math.floor(Math.random() * piecePool.length)];
+            const initialShape = TETROMINOES[type][0]; // 항상 첫 번째 회전 상태
+            return {
+                type: type,
+                shape: initialShape,
+                x: Math.floor(BOARD_WIDTH / 2) - Math.floor(initialShape[0].length / 2),
+                y: 0,
+                rotation: 0  // 항상 0으로 초기화
+            };
+        }
+
+        function initNextPieces() {
+            nextPieces = [];
+            for (let i = 0; i < 4; i++) {
+                nextPieces.push(createPiece());
+            }
+        }
+
+        function getNextPiece() {
+            const piece = nextPieces.shift();
+            nextPieces.push(createPiece());
+            return piece;
+        }
+
+        // 최적화된 순위 업데이트 (디바운싱 + 변경 감지)
+        function updateCurrentRank() {
+            const now = Date.now();
+            const currentRank = rankingSystem.getCurrentRank(currentPlayer, score);
+            
+            // 순위가 변경되지 않았으면 업데이트 안 함
+            if (currentRank === lastDisplayedRank && (now - lastRankingUpdate) < 1000) {
+                return;
+            }
+            
+            // 기존 타임아웃 취소
+            if (rankingUpdateTimeout) {
+                clearTimeout(rankingUpdateTimeout);
+            }
+            
+            // 500ms 디바운싱 적용
+            rankingUpdateTimeout = setTimeout(() => {
+                const finalRank = rankingSystem.getCurrentRank(currentPlayer, score);
+                if (finalRank !== lastDisplayedRank) {
+                    document.getElementById('currentRank').textContent = `#${finalRank}`;
+                    lastDisplayedRank = finalRank;
+                    lastRankingUpdate = Date.now();
+                    
+                    // 순위 표시 업데이트 (더 적은 빈도로)
+                    updateRankingDisplayOptimized();
+                }
+            }, 500);
+        }
+
+        // 최적화된 순위 표시 업데이트
+        function updateRankingDisplayOptimized() {
+            const now = Date.now();
+            // 최소 2초 간격으로만 업데이트
+            if (now - lastRankingUpdate < 2000) {
+                return;
+            }
+            updateRankingDisplay();
+        }
+
+        function updateRankingDisplay() {
+            const rankingList = document.getElementById('rankingList');
+            const topRankings = rankingSystem.getTopRankings(10);
+            
+            rankingList.innerHTML = '';
+
+            topRankings.forEach((record, index) => {
+                const rankItem = document.createElement('div');
+                rankItem.className = 'rank-item';
+                
+                if (record.name === currentPlayer && gameRunning) {
+                    rankItem.classList.add('current-player');
+                }
+
+                const position = index + 1;
+                let positionClass = '';
+                if (position === 1) positionClass = 'first';
+                else if (position === 2) positionClass = 'second';
+                else if (position === 3) positionClass = 'third';
+
+                rankItem.innerHTML = `
+                    <div class="rank-position ${positionClass}">#${position}</div>
+                    <div class="rank-info">
+                        <div class="rank-name">${record.name}</div>
+                        <div class="rank-score">${record.score.toLocaleString()}점</div>
+                    </div>
+                    <div class="rank-stats">
+                        <div>L.${record.level}</div>
+                        <div>${record.date}</div>
+                    </div>
+                `;
+
+                rankingList.appendChild(rankItem);
+            });
+
+            // 현재 플레이어가 상위 10위 밖이면 별도 표시
+            if (gameRunning && currentPlayer) {
+                const playerRank = rankingSystem.getCurrentRank(currentPlayer, score);
+                if (playerRank > 10) {
+                    const separator = document.createElement('div');
+                    separator.style.cssText = 'border-top: 1px solid #666; margin: 10px 0; padding-top: 8px; color: #666; text-align: center; font-size: 10px;';
+                    separator.textContent = '...';
+                    rankingList.appendChild(separator);
+
+                    const currentPlayerItem = document.createElement('div');
+                    currentPlayerItem.className = 'rank-item current-player';
+                    currentPlayerItem.innerHTML = `
+                        <div class="rank-position">#${playerRank}</div>
+                        <div class="rank-info">
+                            <div class="rank-name">${currentPlayer}</div>
+                            <div class="rank-score">${score.toLocaleString()}점</div>
+                        </div>
+                        <div class="rank-stats">
+                            <div>L.${level}</div>
+                            <div>현재</div>
+                        </div>
+                    `;
+                    rankingList.appendChild(currentPlayerItem);
+                }
+            }
+        }
+
+        // 게임 로직 함수들 (기존과 동일)
+        function isValidMove(piece, dx = 0, dy = 0, rotation = null) {
+            let shape;
+            if (rotation !== null) {
+                const rotations = TETROMINOES[piece.type];
+                if (!rotations || rotation >= rotations.length) return false; // 안전 체크
+                shape = rotations[rotation];
+            } else {
+                shape = piece.shape;
+            }
+            
+            if (!shape) return false; // shape이 없으면 false
+            
+            for (let y = 0; y < shape.length; y++) {
+                for (let x = 0; x < shape[y].length; x++) {
+                    if (shape[y][x]) {
+                        const newX = piece.x + x + dx;
+                        const newY = piece.y + y + dy;
+                        
+                        if (newX < 0 || newX >= BOARD_WIDTH || 
+                            newY >= BOARD_HEIGHT || 
+                            (newY >= 0 && board[newY][newX])) {
+                            return false;
+                        }
+                    }
+                }
+            }
+            return true;
+        }
+
+        function holdPiece() {
+            if (!canHold || !gameRunning || gamePaused) return;
+            
+            if (heldPiece === null) {
+                // 첫 번째 홀드: 현재 피스를 홀드하고 새 피스 가져오기
+                heldPiece = {
+                    type: currentPiece.type,
+                    shape: TETROMINOES[currentPiece.type][0], // 항상 초기 회전 상태로 홀드
+                    rotation: 0
+                };
+                currentPiece = getNextPiece();
+            } else {
+                // 홀드 교체: 현재 피스와 홀드된 피스 교체
+                const tempType = heldPiece.type;
+                
+                // 현재 피스를 홀드로
+                heldPiece = {
+                    type: currentPiece.type,
+                    shape: TETROMINOES[currentPiece.type][0], // 항상 초기 회전 상태로 홀드
+                    rotation: 0
+                };
+                
+                // 홀드된 피스를 현재 피스로 (항상 초기 상태)
+                const newShape = TETROMINOES[tempType][0];
+                currentPiece = {
+                    type: tempType,
+                    shape: newShape,
+                    x: Math.floor(BOARD_WIDTH / 2) - Math.floor(newShape[0].length / 2),
+                    y: 0,
+                    rotation: 0  // 항상 초기 회전으로 설정
+                };
+            }
+            canHold = false;
+            
+            // 홀드 미션 진행
+            missionSystem.updateProgress('hold');
+        }
+
+        function placePiece() {
+            for (let y = 0; y < currentPiece.shape.length; y++) {
+                for (let x = 0; x < currentPiece.shape[y].length; x++) {
+                    if (currentPiece.shape[y][x]) {
+                        const boardY = currentPiece.y + y;
+                        const boardX = currentPiece.x + x;
+                        if (boardY >= 0) {
+                            board[boardY][boardX] = currentPiece.type;
+                        }
+                    }
+                }
+            }
+            canHold = true;
+        }
+
+        function clearLines() {
+            let linesCleared = 0;
+            
+            for (let y = BOARD_HEIGHT - 1; y >= 0; y--) {
+                if (board[y].every(cell => cell !== 0)) {
+                    board.splice(y, 1);
+                    board.unshift(Array(BOARD_WIDTH).fill(0));
+                    linesCleared++;
+                    y++;
+                }
+            }
+            
+            if (linesCleared > 0) {
+                lines += linesCleared;
+                score += linesCleared * 100 * level;
+                const oldLevel = level;
+                // 더 빠른 레벨업: 초반에는 5줄마다, 나중에는 8줄마다
+                if (level <= 5) {
+                    level = Math.floor(lines / 5) + 1;  // 1-5레벨: 5줄마다
+                } else if (level <= 15) {
+                    level = Math.floor((lines - 25) / 7) + 6;  // 6-15레벨: 7줄마다
+                } else {
+                    level = Math.floor((lines - 95) / 10) + 16; // 16+레벨: 10줄마다
+                }
+                
+                // 미션 진행 업데이트
+                missionSystem.updateProgress('lines', linesCleared);
+                missionSystem.updateProgress('tetris', 1, linesCleared);
+                missionSystem.updateProgress('consecutive', 1, linesCleared);
+                if (level > oldLevel) {
+                    missionSystem.updateProgress('level', level);
+                }
+                missionSystem.updateProgress('score', score);
+                
+                updateDisplay();
+                updateCurrentRank();
+            } else {
+                // 라인을 클리어하지 못했을 때 연속 기록 리셋
+                missionSystem.updateProgress('consecutive', 1, 0);
+            }
+        }
+
+        function draw3DBlock(ctx, x, y, size, color) {
+            ctx.fillStyle = color.main;
+            ctx.fillRect(x, y, size, size);
+            
+            ctx.fillStyle = color.light;
+            ctx.fillRect(x, y, size, 3);
+            ctx.fillRect(x, y, 3, size);
+            
+            ctx.fillStyle = color.dark;
+            ctx.fillRect(x, y + size - 3, size, 3);
+            ctx.fillRect(x + size - 3, y, 3, size);
+            
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x, y, size, size);
+        }
+
+        function draw() {
+            if (!ctx) return;
+            
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            for (let y = 0; y < BOARD_HEIGHT; y++) {
+                for (let x = 0; x < BOARD_WIDTH; x++) {
+                    if (board[y][x]) {
+                        draw3DBlock(ctx, x * BLOCK_SIZE, y * BLOCK_SIZE, 
+                                  BLOCK_SIZE - 1, COLORS[board[y][x]]);
+                    }
+                }
+            }
+            
+            if (currentPiece) {
+                for (let y = 0; y < currentPiece.shape.length; y++) {
+                    for (let x = 0; x < currentPiece.shape[y].length; x++) {
+                        if (currentPiece.shape[y][x]) {
+                            draw3DBlock(ctx, (currentPiece.x + x) * BLOCK_SIZE,
+                                      (currentPiece.y + y) * BLOCK_SIZE,
+                                      BLOCK_SIZE - 1, COLORS[currentPiece.type]);
+                        }
+                    }
+                }
+            }
+        }
+
+        function drawHoldPiece() {
+            if (!holdCtx) return;
+            
+            holdCtx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+            holdCtx.fillRect(0, 0, holdCanvas.width, holdCanvas.height);
+            
+            if (heldPiece) {
+                const shape = heldPiece.shape;
+                const blockSize = 10;
+                const offsetX = (holdCanvas.width - shape[0].length * blockSize) / 2;
+                const offsetY = (holdCanvas.height - shape.length * blockSize) / 2;
+                
+                for (let y = 0; y < shape.length; y++) {
+                    for (let x = 0; x < shape[y].length; x++) {
+                        if (shape[y][x]) {
+                            draw3DBlock(holdCtx, offsetX + x * blockSize, 
+                                      offsetY + y * blockSize, blockSize - 1, 
+                                      COLORS[heldPiece.type]);
+                        }
+                    }
+                }
+            }
+        }
+
+        function drawNextPieces() {
+            nextContexts.forEach((ctx, index) => {
+                if (!ctx || !nextCanvases[index]) return;
+                
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillRect(0, 0, nextCanvases[index].width, nextCanvases[index].height);
+                
+                if (nextPieces[index]) {
+                    const shape = nextPieces[index].shape;
+                    const blockSize = 8;
+                    const offsetX = (nextCanvases[index].width - shape[0].length * blockSize) / 2;
+                    const offsetY = (nextCanvases[index].height - shape.length * blockSize) / 2;
+                    
+                    for (let y = 0; y < shape.length; y++) {
+                        for (let x = 0; x < shape[y].length; x++) {
+                            if (shape[y][x]) {
+                                draw3DBlock(ctx, offsetX + x * blockSize, 
+                                          offsetY + y * blockSize, blockSize - 1, 
+                                          COLORS[nextPieces[index].type]);
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateTimer() {
+            if (gameRunning && !gamePaused) {
+                const elapsed = Math.floor((Date.now() - gameStartTime) / 1000);
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = elapsed % 60;
+                const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                document.getElementById('timer').textContent = timeString;
+            }
+        }
+
+        function updateDisplay() {
+            document.getElementById('score').textContent = score.toLocaleString();
+            document.getElementById('level').textContent = level;
+            document.getElementById('lines').textContent = lines;
+        }
+
+        function rotatePiece() {
+            if (!gameRunning || gamePaused) return;
+            
+            const rotations = TETROMINOES[currentPiece.type];
+            if (!rotations || rotations.length === 0) return; // 안전 체크
+            
+            const nextRotation = (currentPiece.rotation + 1) % rotations.length;
+            
+            if (isValidMove(currentPiece, 0, 0, nextRotation)) {
+                currentPiece.rotation = nextRotation;
+                currentPiece.shape = rotations[nextRotation];
+            }
+        }
+
+        function movePiece(dx, dy) {
+            if (!gameRunning || gamePaused) return false;
+            
+            if (isValidMove(currentPiece, dx, dy)) {
+                currentPiece.x += dx;
+                currentPiece.y += dy;
+                return true;
+            }
+            return false;
+        }
+
+        function dropPiece() {
+            if (!gameRunning || gamePaused) return;
+            
+            while (movePiece(0, 1)) {
+                score += 2;
+            }
+            
+            // 하드드롭 미션 진행
+            missionSystem.updateProgress('hardDrop');
+            
+            updateDisplay();
+            // updateCurrentRank(); // 제거: 하드드롭마다 호출되어 깜박임 유발
+        }
+
+        function isGameOver() {
+            return !isValidMove(currentPiece);
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            
+            const elapsed = Math.floor((Date.now() - gameStartTime) / 1000);
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = elapsed % 60;
+            const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            // 순위 등록
+            const finalRank = rankingSystem.addScore(currentPlayer, score, lines, level, elapsed);
+            const isNewRecord = rankingSystem.isNewPersonalBest(currentPlayer, score);
+            
+            // 게임 오버 화면 표시
+            document.getElementById('finalScore').textContent = score.toLocaleString();
+            document.getElementById('finalLines').textContent = lines;
+            document.getElementById('finalTime').textContent = timeString;
+            document.getElementById('finalRank').textContent = `#${finalRank}`;
+            
+            const gameOverDiv = document.getElementById('gameOver');
+            const newRecordBanner = document.getElementById('newRecordBanner');
+            
+            if (isNewRecord && score > 0) {
+                newRecordBanner.style.display = 'block';
+                gameOverDiv.classList.add('new-record');
+            } else {
+                newRecordBanner.style.display = 'none';
+                gameOverDiv.classList.remove('new-record');
+            }
+            
+            gameOverDiv.style.display = 'block';
+            
+            // 순위표 업데이트
+            updateRankingDisplay();
+        }
+
+        function restartGame() {
+            document.getElementById('gameOver').style.display = 'none';
+            initializeGame();
+        }
+
+        // 개선된 속도 계산 함수
+        function calculateDropInterval() {
+            // 기본 속도: 1000ms
+            // 레벨 1-10: 매 레벨당 80ms 감소 (선형)
+            // 레벨 11-20: 매 레벨당 40ms 감소 (중간)
+            // 레벨 21+: 매 레벨당 20ms 감소 (완만)
+            
+            let interval = 1000;
+            
+            if (level <= 10) {
+                interval = 1000 - (level - 1) * 80; // 1000 → 280ms
+            } else if (level <= 20) {
+                interval = 280 - (level - 10) * 40; // 280 → 80ms
+            } else {
+                interval = Math.max(30, 80 - (level - 20) * 20); // 80ms → 최소 30ms
+            }
+            
+            return interval;
+        }
+
+        function gameLoop(time = 0) {
+            const deltaTime = time - lastTime;
+            lastTime = time;
+            
+            if (gameRunning && !gamePaused) {
+                dropTime += deltaTime;
+                const dropInterval = calculateDropInterval();
+                
+                if (dropTime > dropInterval) {
+                    if (!movePiece(0, 1)) {
+                        placePiece();
+                        clearLines();
+                        currentPiece = getNextPiece();
+                        
+                        if (isGameOver()) {
+                            gameOver();
+                        }
+                    }
+                    dropTime = 0;
+                }
+                
+                // 주기적 순위 업데이트 (3초마다 한 번)
+                if (Math.floor(time / 3000) !== Math.floor(lastTime / 3000)) {
+                    updateCurrentRank();
+                }
+                
+                updateTimer();
+                draw();
+                drawHoldPiece();
+                drawNextPieces();
+            }
+            
+            requestAnimationFrame(gameLoop);
+        }
+
+        function setupMobileControls() {
+            document.getElementById('leftBtn').addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                movePiece(-1, 0);
+            });
+            
+            document.getElementById('rightBtn').addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                movePiece(1, 0);
+            });
+            
+            document.getElementById('downBtn').addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                if (movePiece(0, 1)) {
+                    score += 1;
+                    updateDisplay();
+                    // updateCurrentRank(); // 제거: 너무 자주 호출됨
+                }
+            });
+            
+            document.getElementById('rotateBtn').addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                rotatePiece();
+            });
+            
+            document.getElementById('dropBtn').addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                dropPiece();
+            });
+            
+            document.getElementById('holdBtn').addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                holdPiece();
+            });
+            
+            document.getElementById('pauseBtn').addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                gamePaused = !gamePaused;
+            });
+        }
+
+        // 키보드 컨트롤
+        document.addEventListener('keydown', (event) => {
+            if (!gameRunning) return;
+            
+            switch (event.key.toLowerCase()) {
+                case 'arrowleft':
+                    event.preventDefault();
+                    movePiece(-1, 0);
+                    break;
+                case 'arrowright':
+                    event.preventDefault();
+                    movePiece(1, 0);
+                    break;
+                case 'arrowdown':
+                    event.preventDefault();
+                    if (movePiece(0, 1)) {
+                        score += 1;
+                        updateDisplay();
+                        // updateCurrentRank(); // 제거: 키보드 입력마다 호출되어 깜박임 유발
+                    }
+                    break;
+                case 'arrowup':
+                    event.preventDefault();
+                    rotatePiece();
+                    break;
+                case ' ':
+                    event.preventDefault();
+                    dropPiece();
+                    break;
+                case 'c':
+                    event.preventDefault();
+                    holdPiece();
+                    break;
+                case 'p':
+                    event.preventDefault();
+                    gamePaused = !gamePaused;
+                    break;
+            }
+        });
+    </script>
+</body>
+</html>
