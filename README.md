@@ -1,6 +1,6 @@
 # SBI 테트리스
 
-기존에 있던 테트리스를 즐겨보세요
+온라인 테트리스 게임 - 멀티플레이어 순위 시스템
 
 ## 🎮 게임 특징
 
@@ -13,7 +13,7 @@
 
 ## 🚀 데모 플레이
 
-**[🎮 지금 플레이하기](https://yourusername.github.io/tetris_game/tetris_multiplayer.html)**
+**[🎮 지금 플레이하기](https://souljd82-vibe.github.io/tetris-game/tetris_multiplayer.html)**
 
 *위 링크를 클릭하면 바로 게임을 플레이할 수 있습니다!*
 

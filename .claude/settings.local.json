@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Bash(start tetris_multiplayer.html)"
+      "Bash(start tetris_multiplayer.html)",
+      "Bash(git push:*)",
+      "Bash(git add:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []
