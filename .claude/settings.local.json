@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(start tetris_multiplayer.html)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
