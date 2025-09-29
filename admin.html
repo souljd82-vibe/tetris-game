@@ -706,7 +706,7 @@
             });
 
             // 초기 데이터 로드
-            loadMockData();
+            loadRealData();
             showPage('dashboard');
         }
 
@@ -763,38 +763,57 @@
 
         // 대시보드 데이터 로드
         function loadDashboard() {
-            document.getElementById('totalUsers').textContent = adminData.users.length;
-            document.getElementById('totalGames').textContent = adminData.games.length;
-            document.getElementById('onlineUsers').textContent = Math.floor(Math.random() * 10) + 1;
-            document.getElementById('highScore').textContent = Math.max(...adminData.games.map(g => g.score));
+            // 실제 통계 데이터 사용
+            if (adminData.stats) {
+                document.getElementById('totalUsers').textContent = adminData.stats.totalUsers || adminData.users.length;
+                document.getElementById('totalGames').textContent = adminData.stats.totalGames || adminData.games.length;
+                document.getElementById('onlineUsers').textContent = adminData.users.filter(u => u.online).length;
+                document.getElementById('highScore').textContent = adminData.stats.highScore ||
+                    (adminData.users.length > 0 ? Math.max(...adminData.users.map(u => u.highScore)) : 0);
+            } else {
+                document.getElementById('totalUsers').textContent = adminData.users.length;
+                document.getElementById('totalGames').textContent = adminData.games.length;
+                document.getElementById('onlineUsers').textContent = adminData.users.filter(u => u.online).length;
+                document.getElementById('highScore').textContent = adminData.users.length > 0 ?
+                    Math.max(...adminData.users.map(u => u.highScore)) : 0;
+            }
 
+            // 최근 활동 표시
             const recentActivity = adminData.games.slice(-5).reverse();
             const tbody = document.getElementById('recentActivity');
-            tbody.innerHTML = recentActivity.map(game => `
-                <tr>
-                    <td>${formatDate(game.date)}</td>
-                    <td>${game.player}</td>
-                    <td>게임 완료</td>
-                    <td>${game.score.toLocaleString()}</td>
-                </tr>
-            `).join('');
+            if (recentActivity.length > 0) {
+                tbody.innerHTML = recentActivity.map(game => `
+                    <tr>
+                        <td>${formatDate(game.date)}</td>
+                        <td>${game.player}</td>
+                        <td>게임 완료</td>
+                        <td>${game.score.toLocaleString()}</td>
+                    </tr>
+                `).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #88ccff;">최근 활동이 없습니다.</td></tr>';
+            }
         }
 
         // 사용자 데이터 로드
         function loadUsers() {
             const tbody = document.getElementById('usersList');
-            tbody.innerHTML = adminData.users.map((user, index) => `
-                <tr>
-                    <td>${index + 1}</td>
-                    <td>${user.name}</td>
-                    <td>${formatDate(user.joinDate)}</td>
-                    <td>${user.highScore.toLocaleString()}</td>
-                    <td><span style="color: ${user.online ? '#00ff88' : '#88ccff'}">${user.online ? '온라인' : '오프라인'}</span></td>
-                    <td>
-                        <button class="btn btn-danger" onclick="deleteUser(${index})">삭제</button>
-                    </td>
-                </tr>
-            `).join('');
+            if (adminData.users.length > 0) {
+                tbody.innerHTML = adminData.users.map((user, index) => `
+                    <tr>
+                        <td>${user.id || index + 1}</td>
+                        <td>${user.name}</td>
+                        <td>${formatDate(user.joinDate)}</td>
+                        <td>${(user.highScore || 0).toLocaleString()}</td>
+                        <td><span style="color: ${user.online ? '#00ff88' : '#88ccff'}">${user.online ? '온라인' : '오프라인'}</span></td>
+                        <td>
+                            <button class="btn btn-danger" onclick="deleteUser('${user.id || index}', '${user.name}')">삭제</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #88ccff;">등록된 사용자가 없습니다.</td></tr>';
+            }
         }
 
         // 게임 데이터 로드
@@ -856,39 +875,109 @@
             document.getElementById('scoreMultiplier').value = settings.scoreMultiplier || 1;
         }
 
-        // 목업 데이터 로드
-        function loadMockData() {
-            // 사용자 데이터
-            adminData.users = [
-                { name: 'Player1', joinDate: new Date('2024-01-15'), highScore: 15000, online: true },
-                { name: 'Player2', joinDate: new Date('2024-02-01'), highScore: 12000, online: false },
-                { name: 'Player3', joinDate: new Date('2024-02-10'), highScore: 18000, online: true },
-                { name: 'Player4', joinDate: new Date('2024-03-01'), highScore: 9000, online: false },
-                { name: 'Player5', joinDate: new Date('2024-03-15'), highScore: 22000, online: true }
-            ];
+        // 실제 API 데이터 로드
+        async function loadRealData() {
+            console.log('🔄 API 데이터 로드 시작...');
 
-            // 게임 데이터
-            adminData.games = [
-                { player: 'Player1', score: 15000, date: new Date('2024-03-20'), duration: '5분', level: 8 },
-                { player: 'Player2', score: 12000, date: new Date('2024-03-19'), duration: '4분', level: 6 },
-                { player: 'Player3', score: 18000, date: new Date('2024-03-18'), duration: '7분', level: 9 },
-                { player: 'Player4', score: 9000, date: new Date('2024-03-17'), duration: '3분', level: 5 },
-                { player: 'Player5', score: 22000, date: new Date('2024-03-16'), duration: '8분', level: 10 }
-            ];
+            try {
+                // 사용자 데이터 로드
+                console.log('📥 사용자 데이터 로드 중...');
+                const usersResponse = await fetch('/api/users');
+                if (!usersResponse.ok) {
+                    throw new Error(`Users API 오류: ${usersResponse.status}`);
+                }
+                const users = await usersResponse.json();
+                console.log('✅ 사용자 데이터:', users);
 
-            // 랭킹 데이터 (점수순 정렬)
-            adminData.rankings = [...adminData.users]
-                .sort((a, b) => b.highScore - a.highScore)
-                .map(user => ({ player: user.name, score: user.highScore, date: user.joinDate }));
+                adminData.users = users.map(user => ({
+                    id: user.user_id,
+                    name: user.username,
+                    joinDate: new Date(user.created_at),
+                    highScore: user.high_score || 0,
+                    totalGames: user.total_games || 0,
+                    online: false
+                }));
 
-            // 시스템 로그
-            adminData.systemLogs = [
-                { time: new Date(), level: 'INFO', message: '시스템 정상 작동 중' },
-                { time: new Date(Date.now() - 300000), level: 'WARN', message: '메모리 사용량 80% 초과' },
-                { time: new Date(Date.now() - 600000), level: 'INFO', message: '사용자 Player1 로그인' },
-                { time: new Date(Date.now() - 900000), level: 'ERROR', message: '데이터베이스 연결 오류 (복구됨)' },
-                { time: new Date(Date.now() - 1200000), level: 'INFO', message: '백업 완료' }
-            ];
+                // 게임 데이터 로드
+                console.log('📥 게임 데이터 로드 중...');
+                const gamesResponse = await fetch('/api/games');
+                if (!gamesResponse.ok) {
+                    throw new Error(`Games API 오류: ${gamesResponse.status}`);
+                }
+                const games = await gamesResponse.json();
+                console.log('✅ 게임 데이터:', games);
+
+                adminData.games = games.map(game => ({
+                    id: game.record_id,
+                    player: game.username,
+                    score: game.score,
+                    date: new Date(game.played_at),
+                    duration: formatDuration(game.game_duration),
+                    level: game.level_reached
+                }));
+
+                // 랭킹 데이터 로드
+                console.log('📥 랭킹 데이터 로드 중...');
+                const rankingsResponse = await fetch('/api/rankings');
+                if (!rankingsResponse.ok) {
+                    throw new Error(`Rankings API 오류: ${rankingsResponse.status}`);
+                }
+                const rankings = await rankingsResponse.json();
+                console.log('✅ 랭킹 데이터:', rankings);
+
+                adminData.rankings = rankings.map(ranking => ({
+                    player: ranking.username,
+                    score: ranking.high_score,
+                    date: new Date(ranking.high_score_date || ranking.created_at),
+                    totalGames: ranking.total_games
+                }));
+
+                // 통계 데이터 로드
+                console.log('📥 통계 데이터 로드 중...');
+                const statsResponse = await fetch('/api/stats');
+                if (!statsResponse.ok) {
+                    throw new Error(`Stats API 오류: ${statsResponse.status}`);
+                }
+                adminData.stats = await statsResponse.json();
+                console.log('✅ 통계 데이터:', adminData.stats);
+
+                // 시스템 로그 로드
+                console.log('📥 로그 데이터 로드 중...');
+                const logsResponse = await fetch('/api/logs');
+                if (!logsResponse.ok) {
+                    throw new Error(`Logs API 오류: ${logsResponse.status}`);
+                }
+                adminData.systemLogs = await logsResponse.json();
+                console.log('✅ 로그 데이터:', adminData.systemLogs);
+
+                console.log('🎉 모든 데이터 로드 완료!');
+
+            } catch (error) {
+                console.error('❌ 데이터 로드 실패:', error);
+
+                // 오류 발생 시 빈 데이터로 초기화
+                adminData = {
+                    users: [],
+                    games: [],
+                    rankings: [],
+                    systemLogs: [],
+                    stats: {}
+                };
+
+                // 사용자에게 알림
+                alert(`데이터 로드 실패: ${error.message}\n\n관리자 콘솔(F12)에서 자세한 정보를 확인하세요.`);
+            }
+        }
+
+        // 지속 시간 포맷팅 함수
+        function formatDuration(seconds) {
+            if (!seconds || seconds === 0) return '0분';
+            const minutes = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            if (minutes > 0) {
+                return secs > 0 ? `${minutes}분 ${secs}초` : `${minutes}분`;
+            }
+            return `${secs}초`;
         }
 
         // 유틸리티 함수들
@@ -917,7 +1006,8 @@
             showNotification('대시보드를 새로고침했습니다.');
         }
 
-        function refreshUsers() {
+        async function refreshUsers() {
+            await loadRealData();
             loadUsers();
             showNotification('사용자 목록을 새로고침했습니다.');
         }
@@ -926,11 +1016,25 @@
             document.getElementById('userModal').style.display = 'block';
         }
 
-        function deleteUser(index) {
-            if (confirm('정말로 이 사용자를 삭제하시겠습니까?')) {
-                adminData.users.splice(index, 1);
-                loadUsers();
-                showNotification('사용자가 삭제되었습니다.');
+        async function deleteUser(userId, username) {
+            if (confirm(`정말로 사용자 "${username}"를 삭제하시겠습니까?`)) {
+                try {
+                    const response = await fetch(`/api/users/${userId}`, {
+                        method: 'DELETE'
+                    });
+
+                    if (response.ok) {
+                        // 로컬 데이터에서도 제거
+                        adminData.users = adminData.users.filter(user => user.id !== userId);
+                        loadUsers();
+                        showNotification('사용자가 삭제되었습니다.');
+                    } else {
+                        throw new Error('삭제 요청 실패');
+                    }
+                } catch (error) {
+                    console.error('사용자 삭제 오류:', error);
+                    showNotification('사용자 삭제에 실패했습니다.');
+                }
             }
         }
 
