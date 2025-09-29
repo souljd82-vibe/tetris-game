@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>테트리스 온라인 - 관리자 페이지</title>
+    <meta name="description" content="테트리스 게임 관리자 페이지 - 사용자 관리, 게임 통계, 시스템 모니터링">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>">
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 25%, #0f3460 50%, #533483 75%, #7209b7 100%);
+            color: white;
+            font-family: 'Orbitron', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* 헤더 */
+        .admin-header {
+            background: rgba(0, 0, 0, 0.8);
+            border-bottom: 2px solid #00bfff;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .admin-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .admin-logo h1 {
+            font-size: 1.4em;
+            font-weight: 900;
+            background: linear-gradient(45deg, #00ff88, #00bfff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .admin-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .admin-time {
+            font-size: 0.8em;
+            color: #88ccff;
+        }
+
+        .logout-btn {
+            padding: 8px 16px;
+            background: linear-gradient(45deg, #ff4757, #ff6b7a);
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-family: 'Orbitron', monospace;
+            font-weight: 700;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .logout-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 71, 87, 0.3);
+        }
+
+        /* 사이드바 */
+        .admin-layout {
+            display: flex;
+            min-height: calc(100vh - 60px);
+        }
+
+        .sidebar {
+            width: 200px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 20px 0;
+            border-right: 2px solid #00bfff;
+        }
+
+        .nav-item {
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-left: 3px solid transparent;
+            font-size: 0.9em;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            background: rgba(0, 191, 255, 0.2);
+            border-left-color: #00bfff;
+        }
+
+        .nav-icon {
+            font-size: 1em;
+            width: 20px;
+        }
+
+        /* 메인 콘텐츠 */
+        .main-content {
+            flex: 1;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .page-title {
+            font-size: 1.6em;
+            font-weight: 900;
+            margin-bottom: 20px;
+            background: linear-gradient(45deg, #00ff88, #00bfff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* 통계 카드 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .stat-card {
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid #00bfff;
+            border-radius: 12px;
+            padding: 18px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 191, 255, 0.3);
+        }
+
+        .stat-icon {
+            font-size: 2.2em;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .stat-number {
+            font-size: 2em;
+            font-weight: 900;
+            color: #00ff88;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            font-size: 0.95em;
+            color: #88ccff;
+        }
+
+        /* 테이블 */
+        .data-table {
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid #00bfff;
+            border-radius: 12px;
+            padding: 18px;
+            backdrop-filter: blur(10px);
+            margin-bottom: 20px;
+        }
+
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .table-title {
+            font-size: 1.3em;
+            font-weight: 700;
+            color: #00bfff;
+        }
+
+        .table-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            padding: 6px 12px;
+            border: 2px solid #00bfff;
+            border-radius: 6px;
+            background: rgba(0, 191, 255, 0.2);
+            color: white;
+            font-family: 'Orbitron', monospace;
+            font-size: 0.85em;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            background: rgba(0, 191, 255, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            border-color: #ff4757;
+            background: rgba(255, 71, 87, 0.2);
+        }
+
+        .btn-danger:hover {
+            background: rgba(255, 71, 87, 0.4);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid rgba(0, 191, 255, 0.3);
+            font-size: 0.9em;
+        }
+
+        th {
+            background: rgba(0, 191, 255, 0.2);
+            font-weight: 700;
+            color: #00bfff;
+        }
+
+        tr:hover {
+            background: rgba(0, 191, 255, 0.1);
+        }
+
+        /* 모달 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background: rgba(30, 50, 100, 0.9);
+            border: 3px solid #00bfff;
+            border-radius: 15px;
+            padding: 25px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 0 40px rgba(0, 191, 255, 0.6);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 1.3em;
+            font-weight: 700;
+            color: #00bfff;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: #ff4757;
+            font-size: 2em;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .close-btn:hover {
+            transform: scale(1.2);
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 0.9em;
+            color: #00bfff;
+            margin-bottom: 6px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #00bfff;
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            font-family: 'Orbitron', monospace;
+            font-size: 0.9em;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #00ff88;
+            box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+        }
+
+        /* 반응형 */
+        @media (max-width: 768px) {
+            .admin-layout {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                display: flex;
+                overflow-x: auto;
+                padding: 12px 0;
+            }
+
+            .nav-item {
+                min-width: 100px;
+                justify-content: center;
+                border-left: none;
+                border-bottom: 3px solid transparent;
+                padding: 8px 15px;
+            }
+
+            .nav-item:hover, .nav-item.active {
+                border-left: none;
+                border-bottom-color: #00bfff;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                gap: 10px;
+            }
+
+            .main-content {
+                padding: 15px;
+            }
+
+            .page-title {
+                font-size: 1.4em;
+                margin-bottom: 15px;
+            }
+        }
+
+        /* 숨김 클래스 */
+        .hidden {
+            display: none !important;
+        }
+
+        /* 로딩 애니메이션 */
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: #88ccff;
+        }
+
+        .loading::after {
+            content: "";
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0, 191, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #00bfff;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <!-- 관리자 헤더 -->
+    <header class="admin-header">
+        <div class="admin-logo">
+            <span style="font-size: 2em;">⚙️</span>
+            <h1>테트리스 관리자</h1>
+        </div>
+        <div class="admin-controls">
+            <div class="admin-time" id="currentTime"></div>
+            <button class="logout-btn" onclick="logout()">로그아웃</button>
+        </div>
+    </header>
+
+    <!-- 관리자 레이아웃 -->
+    <div class="admin-layout">
+        <!-- 사이드바 -->
+        <nav class="sidebar">
+            <div class="nav-item active" data-page="dashboard">
+                <span class="nav-icon">📊</span>
+                <span>대시보드</span>
+            </div>
+            <div class="nav-item" data-page="users">
+                <span class="nav-icon">👥</span>
+                <span>사용자 관리</span>
+            </div>
+            <div class="nav-item" data-page="games">
+                <span class="nav-icon">🎮</span>
+                <span>게임 통계</span>
+            </div>
+            <div class="nav-item" data-page="rankings">
+                <span class="nav-icon">🏆</span>
+                <span>랭킹 관리</span>
+            </div>
+            <div class="nav-item" data-page="system">
+                <span class="nav-icon">🖥️</span>
+                <span>시스템 현황</span>
+            </div>
+            <div class="nav-item" data-page="settings">
+                <span class="nav-icon">⚙️</span>
+                <span>설정</span>
+            </div>
+        </nav>
+
+        <!-- 메인 콘텐츠 -->
+        <main class="main-content">
+            <!-- 대시보드 페이지 -->
+            <div id="dashboard" class="page">
+                <h1 class="page-title">📊 대시보드</h1>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <span class="stat-icon">👥</span>
+                        <div class="stat-number" id="totalUsers">-</div>
+                        <div class="stat-label">총 사용자</div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-icon">🎮</span>
+                        <div class="stat-number" id="totalGames">-</div>
+                        <div class="stat-label">총 게임 수</div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-icon">🌐</span>
+                        <div class="stat-number" id="onlineUsers">-</div>
+                        <div class="stat-label">현재 접속자</div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-icon">🏆</span>
+                        <div class="stat-number" id="highScore">-</div>
+                        <div class="stat-label">최고 점수</div>
+                    </div>
+                </div>
+
+                <div class="data-table">
+                    <div class="table-header">
+                        <h2 class="table-title">최근 활동</h2>
+                        <button class="btn" onclick="refreshDashboard()">새로고침</button>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>시간</th>
+                                <th>사용자</th>
+                                <th>활동</th>
+                                <th>점수</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recentActivity">
+                            <tr><td colspan="4" class="loading">데이터를 불러오는 중...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 사용자 관리 페이지 -->
+            <div id="users" class="page hidden">
+                <h1 class="page-title">👥 사용자 관리</h1>
+
+                <div class="data-table">
+                    <div class="table-header">
+                        <h2 class="table-title">사용자 목록</h2>
+                        <div class="table-controls">
+                            <button class="btn" onclick="addUser()">사용자 추가</button>
+                            <button class="btn" onclick="refreshUsers()">새로고침</button>
+                        </div>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>사용자명</th>
+                                <th>가입일</th>
+                                <th>최고점수</th>
+                                <th>상태</th>
+                                <th>관리</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersList">
+                            <tr><td colspan="6" class="loading">데이터를 불러오는 중...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 게임 통계 페이지 -->
+            <div id="games" class="page hidden">
+                <h1 class="page-title">🎮 게임 통계</h1>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <span class="stat-icon">📈</span>
+                        <div class="stat-number" id="todayGames">-</div>
+                        <div class="stat-label">오늘 플레이</div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-icon">⏱️</span>
+                        <div class="stat-number" id="avgGameTime">-</div>
+                        <div class="stat-label">평균 플레이 시간</div>
+                    </div>
+                </div>
+
+                <div class="data-table">
+                    <div class="table-header">
+                        <h2 class="table-title">게임 기록</h2>
+                        <button class="btn btn-danger" onclick="clearGameData()">기록 삭제</button>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>날짜</th>
+                                <th>사용자</th>
+                                <th>점수</th>
+                                <th>플레이 시간</th>
+                                <th>레벨</th>
+                            </tr>
+                        </thead>
+                        <tbody id="gamesList">
+                            <tr><td colspan="5" class="loading">데이터를 불러오는 중...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 랭킹 관리 페이지 -->
+            <div id="rankings" class="page hidden">
+                <h1 class="page-title">🏆 랭킹 관리</h1>
+
+                <div class="data-table">
+                    <div class="table-header">
+                        <h2 class="table-title">현재 랭킹</h2>
+                        <div class="table-controls">
+                            <button class="btn" onclick="resetRankings()">랭킹 초기화</button>
+                            <button class="btn" onclick="exportRankings()">내보내기</button>
+                        </div>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>순위</th>
+                                <th>사용자</th>
+                                <th>점수</th>
+                                <th>달성일</th>
+                                <th>관리</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rankingsList">
+                            <tr><td colspan="5" class="loading">데이터를 불러오는 중...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 시스템 현황 페이지 -->
+            <div id="system" class="page hidden">
+                <h1 class="page-title">🖥️ 시스템 현황</h1>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <span class="stat-icon">💾</span>
+                        <div class="stat-number" id="storageUsed">-</div>
+                        <div class="stat-label">저장소 사용량</div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-icon">⚡</span>
+                        <div class="stat-number" id="serverLoad">-</div>
+                        <div class="stat-label">서버 부하</div>
+                    </div>
+                </div>
+
+                <div class="data-table">
+                    <div class="table-header">
+                        <h2 class="table-title">시스템 로그</h2>
+                        <button class="btn btn-danger" onclick="clearLogs()">로그 삭제</button>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>시간</th>
+                                <th>레벨</th>
+                                <th>메시지</th>
+                            </tr>
+                        </thead>
+                        <tbody id="systemLogs">
+                            <tr><td colspan="3" class="loading">데이터를 불러오는 중...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 설정 페이지 -->
+            <div id="settings" class="page hidden">
+                <h1 class="page-title">⚙️ 설정</h1>
+
+                <div class="data-table">
+                    <div class="table-header">
+                        <h2 class="table-title">게임 설정</h2>
+                    </div>
+                    <div style="padding: 20px;">
+                        <div class="form-group">
+                            <label class="form-label">최대 동시 접속자 수</label>
+                            <input type="number" class="form-input" id="maxUsers" value="100">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">게임 시간 제한 (분)</label>
+                            <input type="number" class="form-input" id="gameTimeLimit" value="30">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">점수 배율</label>
+                            <input type="number" class="form-input" id="scoreMultiplier" value="1" step="0.1">
+                        </div>
+                        <button class="btn" onclick="saveSettings()">설정 저장</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 사용자 추가 모달 -->
+    <div id="userModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">사용자 추가</h2>
+                <button class="close-btn" onclick="closeModal('userModal')">&times;</button>
+            </div>
+            <form id="userForm">
+                <div class="form-group">
+                    <label class="form-label">사용자명</label>
+                    <input type="text" class="form-input" id="newUsername" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">초기 점수</label>
+                    <input type="number" class="form-input" id="newUserScore" value="0">
+                </div>
+                <button type="submit" class="btn">추가</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // 전역 변수
+        let adminData = {
+            users: [],
+            games: [],
+            rankings: [],
+            systemLogs: []
+        };
+
+        // 페이지 로드 시 초기화
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeAdmin();
+            updateClock();
+            setInterval(updateClock, 1000);
+        });
+
+        // 관리자 페이지 초기화
+        function initializeAdmin() {
+            // 네비게이션 이벤트 설정
+            const navItems = document.querySelectorAll('.nav-item');
+            navItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    const page = this.dataset.page;
+                    showPage(page);
+
+                    // 활성 상태 변경
+                    navItems.forEach(nav => nav.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+
+            // 초기 데이터 로드
+            loadMockData();
+            showPage('dashboard');
+        }
+
+        // 시계 업데이트
+        function updateClock() {
+            const now = new Date();
+            const timeString = now.toLocaleString('ko-KR', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            document.getElementById('currentTime').textContent = timeString;
+        }
+
+        // 페이지 표시
+        function showPage(pageId) {
+            // 모든 페이지 숨김
+            const pages = document.querySelectorAll('.page');
+            pages.forEach(page => page.classList.add('hidden'));
+
+            // 선택된 페이지 표시
+            document.getElementById(pageId).classList.remove('hidden');
+
+            // 페이지별 데이터 로드
+            loadPageData(pageId);
+        }
+
+        // 페이지별 데이터 로드
+        function loadPageData(pageId) {
+            switch(pageId) {
+                case 'dashboard':
+                    loadDashboard();
+                    break;
+                case 'users':
+                    loadUsers();
+                    break;
+                case 'games':
+                    loadGames();
+                    break;
+                case 'rankings':
+                    loadRankings();
+                    break;
+                case 'system':
+                    loadSystem();
+                    break;
+                case 'settings':
+                    loadSettings();
+                    break;
+            }
+        }
+
+        // 대시보드 데이터 로드
+        function loadDashboard() {
+            document.getElementById('totalUsers').textContent = adminData.users.length;
+            document.getElementById('totalGames').textContent = adminData.games.length;
+            document.getElementById('onlineUsers').textContent = Math.floor(Math.random() * 10) + 1;
+            document.getElementById('highScore').textContent = Math.max(...adminData.games.map(g => g.score));
+
+            const recentActivity = adminData.games.slice(-5).reverse();
+            const tbody = document.getElementById('recentActivity');
+            tbody.innerHTML = recentActivity.map(game => `
+                <tr>
+                    <td>${formatDate(game.date)}</td>
+                    <td>${game.player}</td>
+                    <td>게임 완료</td>
+                    <td>${game.score.toLocaleString()}</td>
+                </tr>
+            `).join('');
+        }
+
+        // 사용자 데이터 로드
+        function loadUsers() {
+            const tbody = document.getElementById('usersList');
+            tbody.innerHTML = adminData.users.map((user, index) => `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>${user.name}</td>
+                    <td>${formatDate(user.joinDate)}</td>
+                    <td>${user.highScore.toLocaleString()}</td>
+                    <td><span style="color: ${user.online ? '#00ff88' : '#88ccff'}">${user.online ? '온라인' : '오프라인'}</span></td>
+                    <td>
+                        <button class="btn btn-danger" onclick="deleteUser(${index})">삭제</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // 게임 데이터 로드
+        function loadGames() {
+            const todayGames = adminData.games.filter(game =>
+                new Date(game.date).toDateString() === new Date().toDateString()
+            ).length;
+            document.getElementById('todayGames').textContent = todayGames;
+            document.getElementById('avgGameTime').textContent = '5분';
+
+            const tbody = document.getElementById('gamesList');
+            tbody.innerHTML = adminData.games.slice(-10).reverse().map(game => `
+                <tr>
+                    <td>${formatDate(game.date)}</td>
+                    <td>${game.player}</td>
+                    <td>${game.score.toLocaleString()}</td>
+                    <td>${game.duration}</td>
+                    <td>${game.level}</td>
+                </tr>
+            `).join('');
+        }
+
+        // 랭킹 데이터 로드
+        function loadRankings() {
+            const tbody = document.getElementById('rankingsList');
+            tbody.innerHTML = adminData.rankings.map((ranking, index) => `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>${ranking.player}</td>
+                    <td>${ranking.score.toLocaleString()}</td>
+                    <td>${formatDate(ranking.date)}</td>
+                    <td>
+                        <button class="btn btn-danger" onclick="deleteRanking(${index})">삭제</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // 시스템 데이터 로드
+        function loadSystem() {
+            document.getElementById('storageUsed').textContent = '2.3GB';
+            document.getElementById('serverLoad').textContent = Math.floor(Math.random() * 30) + 10 + '%';
+
+            const tbody = document.getElementById('systemLogs');
+            tbody.innerHTML = adminData.systemLogs.slice(-10).reverse().map(log => `
+                <tr>
+                    <td>${formatDate(log.time)}</td>
+                    <td><span style="color: ${getLogColor(log.level)}">${log.level}</span></td>
+                    <td>${log.message}</td>
+                </tr>
+            `).join('');
+        }
+
+        // 설정 로드
+        function loadSettings() {
+            const settings = JSON.parse(localStorage.getItem('tetrisAdminSettings') || '{}');
+            document.getElementById('maxUsers').value = settings.maxUsers || 100;
+            document.getElementById('gameTimeLimit').value = settings.gameTimeLimit || 30;
+            document.getElementById('scoreMultiplier').value = settings.scoreMultiplier || 1;
+        }
+
+        // 목업 데이터 로드
+        function loadMockData() {
+            // 사용자 데이터
+            adminData.users = [
+                { name: 'Player1', joinDate: new Date('2024-01-15'), highScore: 15000, online: true },
+                { name: 'Player2', joinDate: new Date('2024-02-01'), highScore: 12000, online: false },
+                { name: 'Player3', joinDate: new Date('2024-02-10'), highScore: 18000, online: true },
+                { name: 'Player4', joinDate: new Date('2024-03-01'), highScore: 9000, online: false },
+                { name: 'Player5', joinDate: new Date('2024-03-15'), highScore: 22000, online: true }
+            ];
+
+            // 게임 데이터
+            adminData.games = [
+                { player: 'Player1', score: 15000, date: new Date('2024-03-20'), duration: '5분', level: 8 },
+                { player: 'Player2', score: 12000, date: new Date('2024-03-19'), duration: '4분', level: 6 },
+                { player: 'Player3', score: 18000, date: new Date('2024-03-18'), duration: '7분', level: 9 },
+                { player: 'Player4', score: 9000, date: new Date('2024-03-17'), duration: '3분', level: 5 },
+                { player: 'Player5', score: 22000, date: new Date('2024-03-16'), duration: '8분', level: 10 }
+            ];
+
+            // 랭킹 데이터 (점수순 정렬)
+            adminData.rankings = [...adminData.users]
+                .sort((a, b) => b.highScore - a.highScore)
+                .map(user => ({ player: user.name, score: user.highScore, date: user.joinDate }));
+
+            // 시스템 로그
+            adminData.systemLogs = [
+                { time: new Date(), level: 'INFO', message: '시스템 정상 작동 중' },
+                { time: new Date(Date.now() - 300000), level: 'WARN', message: '메모리 사용량 80% 초과' },
+                { time: new Date(Date.now() - 600000), level: 'INFO', message: '사용자 Player1 로그인' },
+                { time: new Date(Date.now() - 900000), level: 'ERROR', message: '데이터베이스 연결 오류 (복구됨)' },
+                { time: new Date(Date.now() - 1200000), level: 'INFO', message: '백업 완료' }
+            ];
+        }
+
+        // 유틸리티 함수들
+        function formatDate(date) {
+            return new Date(date).toLocaleString('ko-KR', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function getLogColor(level) {
+            switch(level) {
+                case 'ERROR': return '#ff4757';
+                case 'WARN': return '#ffa502';
+                case 'INFO': return '#00ff88';
+                default: return '#88ccff';
+            }
+        }
+
+        // 관리 기능들
+        function refreshDashboard() {
+            loadDashboard();
+            showNotification('대시보드를 새로고침했습니다.');
+        }
+
+        function refreshUsers() {
+            loadUsers();
+            showNotification('사용자 목록을 새로고침했습니다.');
+        }
+
+        function addUser() {
+            document.getElementById('userModal').style.display = 'block';
+        }
+
+        function deleteUser(index) {
+            if (confirm('정말로 이 사용자를 삭제하시겠습니까?')) {
+                adminData.users.splice(index, 1);
+                loadUsers();
+                showNotification('사용자가 삭제되었습니다.');
+            }
+        }
+
+        function deleteRanking(index) {
+            if (confirm('정말로 이 랭킹을 삭제하시겠습니까?')) {
+                adminData.rankings.splice(index, 1);
+                loadRankings();
+                showNotification('랭킹이 삭제되었습니다.');
+            }
+        }
+
+        function clearGameData() {
+            if (confirm('정말로 모든 게임 기록을 삭제하시겠습니까?')) {
+                adminData.games = [];
+                loadGames();
+                showNotification('게임 기록이 삭제되었습니다.');
+            }
+        }
+
+        function resetRankings() {
+            if (confirm('정말로 랭킹을 초기화하시겠습니까?')) {
+                adminData.rankings = [];
+                loadRankings();
+                showNotification('랭킹이 초기화되었습니다.');
+            }
+        }
+
+        function exportRankings() {
+            const data = JSON.stringify(adminData.rankings, null, 2);
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'rankings.json';
+            a.click();
+            URL.revokeObjectURL(url);
+            showNotification('랭킹 데이터를 내보냈습니다.');
+        }
+
+        function clearLogs() {
+            if (confirm('정말로 모든 시스템 로그를 삭제하시겠습니까?')) {
+                adminData.systemLogs = [];
+                loadSystem();
+                showNotification('시스템 로그가 삭제되었습니다.');
+            }
+        }
+
+        function saveSettings() {
+            const settings = {
+                maxUsers: document.getElementById('maxUsers').value,
+                gameTimeLimit: document.getElementById('gameTimeLimit').value,
+                scoreMultiplier: document.getElementById('scoreMultiplier').value
+            };
+            localStorage.setItem('tetrisAdminSettings', JSON.stringify(settings));
+            showNotification('설정이 저장되었습니다.');
+        }
+
+        function logout() {
+            if (confirm('로그아웃하시겠습니까?')) {
+                window.location.href = 'index.html';
+            }
+        }
+
+        // 모달 관련
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        // 사용자 폼 제출
+        document.getElementById('userForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const username = document.getElementById('newUsername').value;
+            const score = parseInt(document.getElementById('newUserScore').value);
+
+            adminData.users.push({
+                name: username,
+                joinDate: new Date(),
+                highScore: score,
+                online: false
+            });
+
+            loadUsers();
+            closeModal('userModal');
+            showNotification('사용자가 추가되었습니다.');
+
+            // 폼 리셋
+            document.getElementById('userForm').reset();
+        });
+
+        // 알림 표시
+        function showNotification(message) {
+            // 간단한 알림 (실제로는 toast 라이브러리 사용 권장)
+            alert(message);
+        }
+
+        // 모달 외부 클릭 시 닫기
+        window.addEventListener('click', function(e) {
+            const modals = document.querySelectorAll('.modal');
+            modals.forEach(modal => {
+                if (e.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
