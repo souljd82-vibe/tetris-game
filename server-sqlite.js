@@ -8,6 +8,20 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// 한국 시간 (UTC+9) 변환 함수
+function getKoreanTime() {
+    const now = new Date();
+    // 한국 시간대로 포맷팅 (YYYY-MM-DD HH:mm:ss)
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
 // 미들웨어 설정
 app.use(cors());
 app.use(bodyParser.json());
@@ -32,42 +46,52 @@ testConnection();
 // 사용자 등록/로그인
 app.post('/api/users/login', async (req, res) => {
     try {
-        const { username } = req.body;
+        const { employeeNumber, username } = req.body;
+
+        if (!employeeNumber || employeeNumber.trim() === '') {
+            return res.status(400).json({ error: '사원번호를 입력해주세요.' });
+        }
 
         if (!username || username.trim() === '') {
             return res.status(400).json({ error: '사용자명을 입력해주세요.' });
         }
 
-        // 기존 사용자 확인
+        // 기존 사용자 확인 (사원번호로 조회)
         const existingUser = await db.get(
-            'SELECT * FROM users WHERE username = ?',
-            [username.trim()]
+            'SELECT * FROM users WHERE employee_number = ?',
+            [employeeNumber.trim()]
         );
 
         let user;
         if (existingUser) {
-            // 기존 사용자 로그인
+            // 기존 사용자 로그인 - 사용자명 업데이트 (변경 가능)
             user = existingUser;
 
-            // 마지막 로그인 시간 업데이트
+            // 사용자명과 마지막 로그인 시간 업데이트
+            const loginTime = getKoreanTime();
             await db.run(
-                'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE user_id = ?',
-                [user.user_id]
+                'UPDATE users SET username = ?, last_login = ? WHERE user_id = ?',
+                [username.trim(), loginTime, user.user_id]
             );
+
+            user.username = username.trim(); // 업데이트된 이름 반영
+            user.last_login = loginTime;
         } else {
             // 새 사용자 등록
+            const currentTime = getKoreanTime();
             const result = await db.run(
-                'INSERT INTO users (username, created_at, last_login) VALUES (?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
-                [username.trim()]
+                'INSERT INTO users (employee_number, username, created_at, last_login) VALUES (?, ?, ?, ?)',
+                [employeeNumber.trim(), username.trim(), currentTime, currentTime]
             );
 
             user = {
                 user_id: result.lastID,
+                employee_number: employeeNumber.trim(),
                 username: username.trim(),
                 high_score: 0,
                 total_games: 0,
-                created_at: new Date(),
-                last_login: new Date()
+                created_at: currentTime,
+                last_login: currentTime
             };
         }
 
@@ -83,7 +107,7 @@ app.post('/api/users/login', async (req, res) => {
 app.get('/api/users', async (req, res) => {
     try {
         const users = await db.query(
-            'SELECT user_id, username, high_score, total_games, created_at, last_login FROM users ORDER BY high_score DESC'
+            'SELECT user_id, employee_number, username, high_score, total_games, created_at, last_login FROM users ORDER BY high_score DESC'
         );
 
         res.json(users);
@@ -119,9 +143,10 @@ app.post('/api/games', async (req, res) => {
         }
 
         // 게임 기록 저장
+        const playedTime = getKoreanTime();
         const gameResult = await db.run(
-            'INSERT INTO game_records (user_id, score, level_reached, lines_cleared, game_duration, played_at) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)',
-            [userId, score, level || 1, linesCleared || 0, gameTime || 0]
+            'INSERT INTO game_records (user_id, score, level_reached, lines_cleared, game_duration, played_at) VALUES (?, ?, ?, ?, ?, ?)',
+            [userId, score, level || 1, linesCleared || 0, gameTime || 0, playedTime]
         );
 
         // 사용자 통계 업데이트
@@ -130,9 +155,13 @@ app.post('/api/games', async (req, res) => {
             [userId]
         );
 
-        const currentHighScore = userStats.high_score;
+        if (!userStats) {
+            return res.status(404).json({ error: '사용자를 찾을 수 없습니다.' });
+        }
+
+        const currentHighScore = userStats.high_score || 0;
         const newHighScore = Math.max(currentHighScore, score);
-        const newTotalGames = userStats.total_games + 1;
+        const newTotalGames = (userStats.total_games || 0) + 1;
 
         await db.run(
             'UPDATE users SET high_score = ?, total_games = ? WHERE user_id = ?',
@@ -157,7 +186,7 @@ app.get('/api/games', async (req, res) => {
         const { userId, limit = 50 } = req.query;
 
         let query = `
-            SELECT gr.*, u.username
+            SELECT gr.*, u.username, u.employee_number
             FROM game_records gr
             JOIN users u ON gr.user_id = u.user_id
         `;
@@ -195,6 +224,7 @@ app.delete('/api/games', async (req, res) => {
 });
 
 // 3. 랭킹 API
+// 사용자별 최고 점수 랭킹 (기존)
 app.get('/api/rankings', async (req, res) => {
     try {
         const { limit = 10 } = req.query;
@@ -202,6 +232,7 @@ app.get('/api/rankings', async (req, res) => {
         const rankings = await db.query(
             `SELECT
                 u.username,
+                u.employee_number,
                 u.high_score,
                 u.total_games,
                 u.created_at,
@@ -216,6 +247,35 @@ app.get('/api/rankings', async (req, res) => {
         res.json(rankings);
     } catch (error) {
         console.error('랭킹 조회 오류:', error);
+        res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+    }
+});
+
+// 전체 게임 기록 랭킹 (모든 플레이 기록)
+app.get('/api/rankings/all', async (req, res) => {
+    try {
+        const { limit = 50 } = req.query;
+
+        const rankings = await db.query(
+            `SELECT
+                gr.record_id,
+                u.username,
+                u.employee_number,
+                gr.score,
+                gr.level_reached,
+                gr.lines_cleared,
+                gr.game_duration,
+                gr.played_at
+            FROM game_records gr
+            JOIN users u ON gr.user_id = u.user_id
+            ORDER BY gr.score DESC, gr.played_at DESC
+            LIMIT ?`,
+            [parseInt(limit)]
+        );
+
+        res.json(rankings);
+    } catch (error) {
+        console.error('전체 랭킹 조회 오류:', error);
         res.status(500).json({ error: '서버 오류가 발생했습니다.' });
     }
 });
@@ -282,7 +342,13 @@ app.get('/api/logs', async (req, res) => {
 
 // 정적 파일 서빙
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'tetris_multiplayer.html'));
+    // 캐시 방지 헤더 설정
+    res.set({
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+    });
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 app.get('/admin', (req, res) => {

@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+
+# Database
+*.db
+tetris_game.db
+
+# Test files
+test_*.js
+*test*.js
+test-*.js
+
+# Screenshots and images
+*.png
+*.jpg
+
+# Error logs
+error/
+
+# Build files
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Special files
+nul
+
+# Test reports
+TEST_*.md
+test-report.json
+test-screenshots/
+
+# Backup files
+*_backup.*
+*_broken_backup.*
+
+# Claude files
+.claude/settings.local.json

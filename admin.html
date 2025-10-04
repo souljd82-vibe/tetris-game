@@ -505,16 +505,15 @@
                     <table>
                         <thead>
                             <tr>
-                                <th>ID</th>
+                                <th>사원번호</th>
                                 <th>사용자명</th>
                                 <th>가입일</th>
                                 <th>최고점수</th>
-                                <th>상태</th>
                                 <th>관리</th>
                             </tr>
                         </thead>
                         <tbody id="usersList">
-                            <tr><td colspan="6" class="loading">데이터를 불러오는 중...</td></tr>
+                            <tr><td colspan="5" class="loading">데이터를 불러오는 중...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -540,20 +539,24 @@
                 <div class="data-table">
                     <div class="table-header">
                         <h2 class="table-title">게임 기록</h2>
-                        <button class="btn btn-danger" onclick="clearGameData()">기록 삭제</button>
+                        <div class="table-controls">
+                            <button class="btn" onclick="refreshGames()">새로고침</button>
+                            <button class="btn btn-danger" onclick="clearGameData()">기록 삭제</button>
+                        </div>
                     </div>
                     <table>
                         <thead>
                             <tr>
-                                <th>날짜</th>
+                                <th>사원번호</th>
                                 <th>사용자</th>
                                 <th>점수</th>
-                                <th>플레이 시간</th>
                                 <th>레벨</th>
+                                <th>플레이 시간</th>
+                                <th>날짜</th>
                             </tr>
                         </thead>
                         <tbody id="gamesList">
-                            <tr><td colspan="5" class="loading">데이터를 불러오는 중...</td></tr>
+                            <tr><td colspan="6" class="loading">데이터를 불러오는 중...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -565,14 +568,19 @@
 
                 <div class="data-table">
                     <div class="table-header">
-                        <h2 class="table-title">현재 랭킹</h2>
+                        <h2 class="table-title">랭킹 목록</h2>
                         <div class="table-controls">
+                            <select id="rankingMode" class="btn" onchange="changeRankingMode()" style="margin-right: 8px;">
+                                <option value="user">사용자별 최고점수</option>
+                                <option value="all">전체 게임 기록</option>
+                            </select>
+                            <button class="btn" onclick="refreshRankings()">새로고침</button>
                             <button class="btn" onclick="resetRankings()">랭킹 초기화</button>
                             <button class="btn" onclick="exportRankings()">내보내기</button>
                         </div>
                     </div>
                     <table>
-                        <thead>
+                        <thead id="rankingsTableHead">
                             <tr>
                                 <th>순위</th>
                                 <th>사용자</th>
@@ -631,6 +639,27 @@
 
                 <div class="data-table">
                     <div class="table-header">
+                        <h2 class="table-title">보안 설정</h2>
+                    </div>
+                    <div style="padding: 20px;">
+                        <div class="form-group">
+                            <label class="form-label">현재 비밀번호</label>
+                            <input type="password" class="form-input" id="currentPassword">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">새 비밀번호</label>
+                            <input type="password" class="form-input" id="newPassword">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">새 비밀번호 확인</label>
+                            <input type="password" class="form-input" id="confirmPassword">
+                        </div>
+                        <button class="btn" onclick="changePassword()">비밀번호 변경</button>
+                    </div>
+                </div>
+
+                <div class="data-table" style="margin-top: 20px;">
+                    <div class="table-header">
                         <h2 class="table-title">게임 설정</h2>
                     </div>
                     <div style="padding: 20px;">
@@ -662,6 +691,10 @@
             </div>
             <form id="userForm">
                 <div class="form-group">
+                    <label class="form-label">사원번호</label>
+                    <input type="text" class="form-input" id="newEmployeeNumber" required placeholder="예: 091111">
+                </div>
+                <div class="form-group">
                     <label class="form-label">사용자명</label>
                     <input type="text" class="form-input" id="newUsername" required>
                 </div>
@@ -683,11 +716,27 @@
             systemLogs: []
         };
 
+        let currentPage = 'dashboard'; // 현재 페이지 추적 변수
+
         // 페이지 로드 시 초기화
         document.addEventListener('DOMContentLoaded', function() {
+            // 로그인 확인
+            if (sessionStorage.getItem('adminLoggedIn') !== 'true') {
+                window.location.href = 'admin-login.html';
+                return;
+            }
+
             initializeAdmin();
             updateClock();
             setInterval(updateClock, 1000);
+
+            // 자동 새로고침 (10초마다 현재 페이지 데이터 갱신)
+            setInterval(() => {
+                if (currentPage) {
+                    console.log(`🔄 자동 새로고침: ${currentPage}`);
+                    loadPageData(currentPage);
+                }
+            }, 10000);
         });
 
         // 관리자 페이지 초기화
@@ -726,6 +775,10 @@
 
         // 페이지 표시
         function showPage(pageId) {
+            // 현재 페이지 업데이트
+            currentPage = pageId;
+            console.log(`📄 페이지 전환: ${pageId}`);
+
             // 모든 페이지 숨김
             const pages = document.querySelectorAll('.page');
             pages.forEach(page => page.classList.add('hidden'));
@@ -738,7 +791,7 @@
         }
 
         // 페이지별 데이터 로드
-        function loadPageData(pageId) {
+        async function loadPageData(pageId) {
             switch(pageId) {
                 case 'dashboard':
                     loadDashboard();
@@ -750,6 +803,7 @@
                     loadGames();
                     break;
                 case 'rankings':
+                    await loadRankingsData();
                     loadRankings();
                     break;
                 case 'system':
@@ -767,13 +821,13 @@
             if (adminData.stats) {
                 document.getElementById('totalUsers').textContent = adminData.stats.totalUsers || adminData.users.length;
                 document.getElementById('totalGames').textContent = adminData.stats.totalGames || adminData.games.length;
-                document.getElementById('onlineUsers').textContent = adminData.users.filter(u => u.online).length;
+                document.getElementById('onlineUsers').textContent = adminData.users.length;
                 document.getElementById('highScore').textContent = adminData.stats.highScore ||
                     (adminData.users.length > 0 ? Math.max(...adminData.users.map(u => u.highScore)) : 0);
             } else {
                 document.getElementById('totalUsers').textContent = adminData.users.length;
                 document.getElementById('totalGames').textContent = adminData.games.length;
-                document.getElementById('onlineUsers').textContent = adminData.users.filter(u => u.online).length;
+                document.getElementById('onlineUsers').textContent = adminData.users.length;
                 document.getElementById('highScore').textContent = adminData.users.length > 0 ?
                     Math.max(...adminData.users.map(u => u.highScore)) : 0;
             }
@@ -801,18 +855,17 @@
             if (adminData.users.length > 0) {
                 tbody.innerHTML = adminData.users.map((user, index) => `
                     <tr>
-                        <td>${user.id || index + 1}</td>
+                        <td>${user.employeeNumber}</td>
                         <td>${user.name}</td>
                         <td>${formatDate(user.joinDate)}</td>
                         <td>${(user.highScore || 0).toLocaleString()}</td>
-                        <td><span style="color: ${user.online ? '#00ff88' : '#88ccff'}">${user.online ? '온라인' : '오프라인'}</span></td>
                         <td>
-                            <button class="btn btn-danger" onclick="deleteUser('${user.id || index}', '${user.name}')">삭제</button>
+                            <button class="btn btn-danger" onclick="deleteUser(${user.id}, '${user.name}')">삭제</button>
                         </td>
                     </tr>
                 `).join('');
             } else {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #88ccff;">등록된 사용자가 없습니다.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #88ccff;">등록된 사용자가 없습니다.</td></tr>';
             }
         }
 
@@ -827,29 +880,137 @@
             const tbody = document.getElementById('gamesList');
             tbody.innerHTML = adminData.games.slice(-10).reverse().map(game => `
                 <tr>
-                    <td>${formatDate(game.date)}</td>
+                    <td>${game.employeeNumber}</td>
                     <td>${game.player}</td>
-                    <td>${game.score.toLocaleString()}</td>
+                    <td style="color: #00ff88; font-weight: bold;">${game.score.toLocaleString()}</td>
+                    <td>Lv.${game.level}</td>
                     <td>${game.duration}</td>
-                    <td>${game.level}</td>
+                    <td>${formatDate(game.date)}</td>
                 </tr>
             `).join('');
         }
 
-        // 랭킹 데이터 로드
+        // 랭킹 표시 모드 전역 변수
+        let rankingMode = 'user'; // 'user' 또는 'all'
+
+        // 랭킹 모드 변경
+        async function changeRankingMode() {
+            rankingMode = document.getElementById('rankingMode').value;
+            console.log(`🔄 랭킹 모드 변경: ${rankingMode}`);
+            await loadRankingsData();
+            loadRankings();
+        }
+
+        // 랭킹 데이터 로드 (모드에 따라)
+        async function loadRankingsData() {
+            try {
+                const endpoint = rankingMode === 'all' ? '/api/rankings/all?limit=50' : '/api/rankings?limit=50';
+                const response = await fetch(endpoint);
+
+                if (!response.ok) {
+                    throw new Error('랭킹 데이터 로드 실패');
+                }
+
+                const rankings = await response.json();
+                console.log(`✅ 랭킹 데이터 (${rankingMode} 모드):`, rankings);
+
+                if (rankingMode === 'all') {
+                    // 전체 게임 기록 모드
+                    adminData.allRankings = rankings.map(r => ({
+                        recordId: r.record_id,
+                        employeeNumber: r.employee_number,
+                        player: r.username,
+                        score: r.score,
+                        level: r.level_reached,
+                        lines: r.lines_cleared,
+                        duration: formatDuration(r.game_duration),
+                        date: new Date(r.played_at)
+                    }));
+                } else {
+                    // 사용자별 최고점수 모드
+                    adminData.rankings = rankings.map(r => ({
+                        employeeNumber: r.employee_number,
+                        player: r.username,
+                        score: r.high_score,
+                        totalGames: r.total_games,
+                        date: new Date(r.high_score_date || r.created_at)
+                    }));
+                }
+            } catch (error) {
+                console.error('❌ 랭킹 데이터 로드 오류:', error);
+            }
+        }
+
+        // 랭킹 데이터 화면 표시
         function loadRankings() {
             const tbody = document.getElementById('rankingsList');
-            tbody.innerHTML = adminData.rankings.map((ranking, index) => `
-                <tr>
-                    <td>${index + 1}</td>
-                    <td>${ranking.player}</td>
-                    <td>${ranking.score.toLocaleString()}</td>
-                    <td>${formatDate(ranking.date)}</td>
-                    <td>
-                        <button class="btn btn-danger" onclick="deleteRanking(${index})">삭제</button>
-                    </td>
-                </tr>
-            `).join('');
+            const thead = document.getElementById('rankingsTableHead');
+
+            if (rankingMode === 'all') {
+                // 전체 게임 기록 모드 - 테이블 헤더 변경
+                thead.innerHTML = `
+                    <tr>
+                        <th>순위</th>
+                        <th>사원번호</th>
+                        <th>사용자</th>
+                        <th>점수</th>
+                        <th>레벨</th>
+                        <th>라인</th>
+                        <th>시간</th>
+                        <th>플레이 날짜</th>
+                    </tr>
+                `;
+
+                if (!adminData.allRankings || adminData.allRankings.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #88ccff;">게임 기록이 없습니다.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = adminData.allRankings.map((ranking, index) => `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${ranking.employeeNumber}</td>
+                        <td>${ranking.player}</td>
+                        <td style="color: #00ff88; font-weight: bold;">${ranking.score.toLocaleString()}</td>
+                        <td>Lv.${ranking.level}</td>
+                        <td>${ranking.lines}</td>
+                        <td>${ranking.duration}</td>
+                        <td>${formatDate(ranking.date)}</td>
+                    </tr>
+                `).join('');
+            } else {
+                // 사용자별 최고점수 모드 - 테이블 헤더 변경
+                thead.innerHTML = `
+                    <tr>
+                        <th>순위</th>
+                        <th>사원번호</th>
+                        <th>사용자</th>
+                        <th>최고 점수</th>
+                        <th>총 게임</th>
+                        <th>달성일</th>
+                        <th>관리</th>
+                    </tr>
+                `;
+
+                if (!adminData.rankings || adminData.rankings.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #88ccff;">랭킹이 없습니다.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = adminData.rankings.map((ranking, index) => `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${ranking.employeeNumber}</td>
+                        <td>${ranking.player}</td>
+                        <td style="color: #00ff88; font-weight: bold;">${ranking.score.toLocaleString()}</td>
+                        <td>${ranking.totalGames}회</td>
+                        <td>${formatDate(ranking.date)}</td>
+                        <td>
+                            <button class="btn btn-danger" onclick="deleteRanking('${ranking.player}')">삭제</button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
         }
 
         // 시스템 데이터 로드
@@ -891,11 +1052,11 @@
 
                 adminData.users = users.map(user => ({
                     id: user.user_id,
+                    employeeNumber: user.employee_number,
                     name: user.username,
                     joinDate: new Date(user.created_at),
                     highScore: user.high_score || 0,
-                    totalGames: user.total_games || 0,
-                    online: false
+                    totalGames: user.total_games || 0
                 }));
 
                 // 게임 데이터 로드
@@ -909,6 +1070,7 @@
 
                 adminData.games = games.map(game => ({
                     id: game.record_id,
+                    employeeNumber: game.employee_number,
                     player: game.username,
                     score: game.score,
                     date: new Date(game.played_at),
@@ -916,21 +1078,9 @@
                     level: game.level_reached
                 }));
 
-                // 랭킹 데이터 로드
+                // 랭킹 데이터 로드 (현재 모드에 따라)
                 console.log('📥 랭킹 데이터 로드 중...');
-                const rankingsResponse = await fetch('/api/rankings');
-                if (!rankingsResponse.ok) {
-                    throw new Error(`Rankings API 오류: ${rankingsResponse.status}`);
-                }
-                const rankings = await rankingsResponse.json();
-                console.log('✅ 랭킹 데이터:', rankings);
-
-                adminData.rankings = rankings.map(ranking => ({
-                    player: ranking.username,
-                    score: ranking.high_score,
-                    date: new Date(ranking.high_score_date || ranking.created_at),
-                    totalGames: ranking.total_games
-                }));
+                await loadRankingsData();
 
                 // 통계 데이터 로드
                 console.log('📥 통계 데이터 로드 중...');
@@ -971,18 +1121,26 @@
 
         // 지속 시간 포맷팅 함수
         function formatDuration(seconds) {
-            if (!seconds || seconds === 0) return '0분';
+            if (!seconds || seconds === 0) return '0초';
             const minutes = Math.floor(seconds / 60);
             const secs = seconds % 60;
-            if (minutes > 0) {
-                return secs > 0 ? `${minutes}분 ${secs}초` : `${minutes}분`;
+
+            if (minutes > 0 && secs > 0) {
+                return `${minutes}분 ${secs}초`;
+            } else if (minutes > 0) {
+                return `${minutes}분`;
+            } else {
+                return `${secs}초`;
             }
-            return `${secs}초`;
         }
 
         // 유틸리티 함수들
         function formatDate(date) {
-            return new Date(date).toLocaleString('ko-KR', {
+            // DB에 저장된 시간은 한국 로컬 시간 문자열 (YYYY-MM-DD HH:mm:ss)
+            // 이를 그대로 Date 객체로 변환하면 로컬 시간대로 해석됨
+            const dateObj = new Date(date);
+
+            return dateObj.toLocaleString('ko-KR', {
                 year: 'numeric',
                 month: '2-digit',
                 day: '2-digit',
@@ -1012,53 +1170,153 @@
             showNotification('사용자 목록을 새로고침했습니다.');
         }
 
+        async function refreshGames() {
+            await loadRealData();
+            loadGames();
+            showNotification('게임 통계를 새로고침했습니다.');
+        }
+
+        async function refreshRankings() {
+            await loadRankingsData();
+            loadRankings();
+            showNotification('랭킹을 새로고침했습니다.');
+        }
+
         function addUser() {
             document.getElementById('userModal').style.display = 'block';
         }
 
         async function deleteUser(userId, username) {
-            if (confirm(`정말로 사용자 "${username}"를 삭제하시겠습니까?`)) {
+            console.log(`🔍 deleteUser 호출됨 - userId: ${userId} (type: ${typeof userId}), username: ${username}`);
+            console.log(`📋 현재 사용자 목록:`, adminData.users);
+
+            if (confirm(`정말로 사용자 "${username}" (ID: ${userId})를 삭제하시겠습니까?`)) {
                 try {
+                    console.log(`🗑️ 사용자 삭제 API 호출: DELETE /api/users/${userId}`);
+
                     const response = await fetch(`/api/users/${userId}`, {
                         method: 'DELETE'
                     });
 
+                    console.log(`📡 서버 응답 상태: ${response.status}`);
+
                     if (response.ok) {
-                        // 로컬 데이터에서도 제거
-                        adminData.users = adminData.users.filter(user => user.id !== userId);
-                        loadUsers();
-                        showNotification('사용자가 삭제되었습니다.');
+                        const responseData = await response.json();
+                        console.log('✅ 서버 응답 데이터:', responseData);
+                        showNotification(`사용자 "${username}"가 삭제되었습니다.`);
+
+                        // 간단한 사용자 목록만 새로고침 (loadRealData 사용 안 함)
+                        console.log('🔄 사용자 목록만 새로고침...');
+
+                        try {
+                            const usersResponse = await fetch('/api/users');
+                            if (usersResponse.ok) {
+                                const users = await usersResponse.json();
+                                console.log('📋 새로운 사용자 목록:', users);
+
+                                adminData.users = users.map(user => ({
+                                    id: user.user_id,
+                                    employeeNumber: user.employee_number,
+                                    name: user.username,
+                                    joinDate: new Date(user.created_at),
+                                    highScore: user.high_score || 0,
+                                    totalGames: user.total_games || 0
+                                }));
+
+                                if (currentPage === 'users') {
+                                    loadUsers();
+                                }
+                            }
+                        } catch (refreshError) {
+                            console.error('❌ 사용자 목록 새로고침 실패:', refreshError);
+                        }
                     } else {
-                        throw new Error('삭제 요청 실패');
+                        const errorData = await response.text();
+                        console.error('❌ 서버 삭제 응답 오류:', response.status, errorData);
+                        throw new Error(`삭제 요청 실패: ${response.status} - ${errorData}`);
                     }
                 } catch (error) {
-                    console.error('사용자 삭제 오류:', error);
-                    showNotification('사용자 삭제에 실패했습니다.');
+                    console.error('❌ 사용자 삭제 오류:', error);
+                    showNotification(`사용자 삭제에 실패했습니다: ${error.message}`);
                 }
             }
         }
 
-        function deleteRanking(index) {
-            if (confirm('정말로 이 랭킹을 삭제하시겠습니까?')) {
-                adminData.rankings.splice(index, 1);
-                loadRankings();
-                showNotification('랭킹이 삭제되었습니다.');
+        async function deleteRanking(username) {
+            if (confirm(`정말로 "${username}"의 랭킹을 삭제하시겠습니까?`)) {
+                try {
+                    // 사용자를 찾아서 삭제
+                    const userToDelete = adminData.users.find(user => user.name === username);
+                    if (userToDelete) {
+                        const response = await fetch(`/api/users/${userToDelete.id}`, {
+                            method: 'DELETE'
+                        });
+
+                        if (response.ok) {
+                            showNotification('랭킹이 삭제되었습니다.');
+                            // 데이터 새로고침
+                            await loadRealData();
+                            if (currentPage === 'rankings') {
+                                loadRankings();
+                            }
+                        } else {
+                            throw new Error('삭제 요청 실패');
+                        }
+                    } else {
+                        throw new Error('사용자를 찾을 수 없습니다.');
+                    }
+                } catch (error) {
+                    console.error('랭킹 삭제 오류:', error);
+                    showNotification('랭킹 삭제에 실패했습니다.');
+                }
             }
         }
 
-        function clearGameData() {
+        async function clearGameData() {
             if (confirm('정말로 모든 게임 기록을 삭제하시겠습니까?')) {
-                adminData.games = [];
-                loadGames();
-                showNotification('게임 기록이 삭제되었습니다.');
+                try {
+                    const response = await fetch('/api/games', {
+                        method: 'DELETE'
+                    });
+
+                    if (response.ok) {
+                        showNotification('게임 기록이 삭제되었습니다.');
+                        // 데이터 새로고침
+                        await loadRealData();
+                        if (currentPage === 'games') {
+                            loadGames();
+                        }
+                    } else {
+                        throw new Error('게임 기록 삭제 요청 실패');
+                    }
+                } catch (error) {
+                    console.error('게임 기록 삭제 오류:', error);
+                    showNotification('게임 기록 삭제에 실패했습니다.');
+                }
             }
         }
 
-        function resetRankings() {
+        async function resetRankings() {
             if (confirm('정말로 랭킹을 초기화하시겠습니까?')) {
-                adminData.rankings = [];
-                loadRankings();
-                showNotification('랭킹이 초기화되었습니다.');
+                try {
+                    const response = await fetch('/api/rankings', {
+                        method: 'DELETE'
+                    });
+
+                    if (response.ok) {
+                        showNotification('랭킹이 초기화되었습니다.');
+                        // 데이터 새로고침
+                        await loadRealData();
+                        if (currentPage === 'rankings') {
+                            loadRankings();
+                        }
+                    } else {
+                        throw new Error('랭킹 초기화 요청 실패');
+                    }
+                } catch (error) {
+                    console.error('랭킹 초기화 오류:', error);
+                    showNotification('랭킹 초기화에 실패했습니다.');
+                }
             }
         }
 
@@ -1092,9 +1350,49 @@
             showNotification('설정이 저장되었습니다.');
         }
 
+        function changePassword() {
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            // 현재 비밀번호 확인
+            const savedPassword = localStorage.getItem('adminPassword') || 'admin';
+
+            if (!currentPassword || !newPassword || !confirmPassword) {
+                showNotification('모든 필드를 입력해주세요.');
+                return;
+            }
+
+            if (currentPassword !== savedPassword) {
+                showNotification('현재 비밀번호가 일치하지 않습니다.');
+                return;
+            }
+
+            if (newPassword !== confirmPassword) {
+                showNotification('새 비밀번호가 일치하지 않습니다.');
+                return;
+            }
+
+            if (newPassword.length < 4) {
+                showNotification('비밀번호는 최소 4자 이상이어야 합니다.');
+                return;
+            }
+
+            // 비밀번호 변경
+            localStorage.setItem('adminPassword', newPassword);
+            showNotification('비밀번호가 성공적으로 변경되었습니다.');
+
+            // 입력 필드 초기화
+            document.getElementById('currentPassword').value = '';
+            document.getElementById('newPassword').value = '';
+            document.getElementById('confirmPassword').value = '';
+        }
+
         function logout() {
             if (confirm('로그아웃하시겠습니까?')) {
-                window.location.href = 'index.html';
+                sessionStorage.removeItem('adminLoggedIn');
+                sessionStorage.removeItem('adminLoginTime');
+                window.location.href = 'admin-login.html';
             }
         }
 
@@ -1104,24 +1402,102 @@
         }
 
         // 사용자 폼 제출
-        document.getElementById('userForm').addEventListener('submit', function(e) {
+        document.getElementById('userForm').addEventListener('submit', async function(e) {
             e.preventDefault();
-            const username = document.getElementById('newUsername').value;
+
+            const employeeNumber = document.getElementById('newEmployeeNumber').value.trim();
+            const username = document.getElementById('newUsername').value.trim();
             const score = parseInt(document.getElementById('newUserScore').value);
 
-            adminData.users.push({
-                name: username,
-                joinDate: new Date(),
-                highScore: score,
-                online: false
-            });
+            if (!employeeNumber) {
+                alert('사원번호를 입력해주세요.');
+                return;
+            }
 
-            loadUsers();
-            closeModal('userModal');
-            showNotification('사용자가 추가되었습니다.');
+            if (!username) {
+                alert('사용자명을 입력해주세요.');
+                return;
+            }
 
-            // 폼 리셋
-            document.getElementById('userForm').reset();
+            try {
+                // 서버에 사용자 등록
+                const response = await fetch('/api/users/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        employeeNumber: employeeNumber,
+                        username: username
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || '사용자 추가 실패');
+                }
+
+                const result = await response.json();
+                console.log('✅ 사용자 추가 성공:', result);
+
+                // 초기 점수가 0이 아닌 경우, 게임 기록도 추가
+                if (score > 0) {
+                    const gameResponse = await fetch('/api/games', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            userId: result.user.user_id,
+                            score: score,
+                            level: 1,
+                            linesCleared: 0,
+                            gameTime: 0
+                        })
+                    });
+
+                    if (gameResponse.ok) {
+                        console.log('✅ 초기 점수 설정 완료');
+                    }
+                }
+
+                // 사용자 목록만 새로고침 (전체 로드 대신 빠른 업데이트)
+                console.log('🔄 사용자 추가 후 목록 새로고침...');
+
+                try {
+                    const usersResponse = await fetch('/api/users');
+                    if (usersResponse.ok) {
+                        const users = await usersResponse.json();
+                        console.log('📋 새로운 사용자 목록:', users);
+
+                        adminData.users = users.map(user => ({
+                            id: user.user_id,
+                            employeeNumber: user.employee_number,
+                            name: user.username,
+                            joinDate: new Date(user.created_at),
+                            highScore: user.high_score || 0,
+                            totalGames: user.total_games || 0
+                        }));
+
+                        // 사용자 관리 페이지가 현재 보이면 즉시 업데이트
+                        if (currentPage === 'users') {
+                            loadUsers();
+                        }
+                    }
+                } catch (refreshError) {
+                    console.error('❌ 사용자 목록 새로고침 실패:', refreshError);
+                }
+
+                closeModal('userModal');
+                showNotification('사용자가 추가되었습니다.');
+
+                // 폼 리셋
+                document.getElementById('userForm').reset();
+
+            } catch (error) {
+                console.error('❌ 사용자 추가 오류:', error);
+                alert(`사용자 추가 실패: ${error.message}`);
+            }
         });
 
         // 알림 표시

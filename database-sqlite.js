@@ -20,7 +20,8 @@ function initializeDatabase() {
                 // 사용자 테이블
                 db.run(`CREATE TABLE IF NOT EXISTS users (
                     user_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    username TEXT NOT NULL UNIQUE,
+                    employee_number TEXT NOT NULL UNIQUE,
+                    username TEXT NOT NULL,
                     high_score INTEGER DEFAULT 0,
                     total_games INTEGER DEFAULT 0,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -43,51 +44,8 @@ function initializeDatabase() {
                     if (err) console.error('게임 기록 테이블 생성 오류:', err);
                 });
 
-                // 초기 샘플 데이터 삽입
-                db.get('SELECT COUNT(*) as count FROM users', (err, row) => {
-                    if (err) {
-                        console.error('사용자 수 확인 오류:', err);
-                        return;
-                    }
-
-                    if (row.count === 0) {
-                        console.log('🔄 초기 샘플 데이터를 삽입합니다...');
-
-                        const insertUser = db.prepare(`INSERT INTO users (username, high_score, total_games, created_at, last_login) VALUES (?, ?, ?, ?, ?)`);
-                        const userData = [
-                            ['TestPlayer1', 15000, 25, '2024-01-15 10:00:00', '2024-03-20 14:30:00'],
-                            ['TestPlayer2', 12000, 18, '2024-02-01 11:15:00', '2024-03-19 16:45:00'],
-                            ['TestPlayer3', 18000, 32, '2024-02-10 09:30:00', '2024-03-20 11:20:00'],
-                            ['GameMaster', 9000, 12, '2024-03-01 13:45:00', '2024-03-18 19:15:00'],
-                            ['TetrisKing', 22000, 41, '2024-03-15 16:20:00', '2024-03-20 20:10:00']
-                        ];
-
-                        userData.forEach(user => {
-                            insertUser.run(user);
-                        });
-                        insertUser.finalize();
-
-                        // 게임 기록 삽입
-                        const insertGame = db.prepare(`INSERT INTO game_records (user_id, score, level_reached, lines_cleared, game_duration, played_at) VALUES (?, ?, ?, ?, ?, ?)`);
-                        const gameData = [
-                            [1, 15000, 8, 45, 420, '2024-03-20 14:30:00'],
-                            [2, 12000, 6, 38, 380, '2024-03-19 16:45:00'],
-                            [3, 18000, 9, 52, 480, '2024-03-20 11:20:00'],
-                            [4, 9000, 5, 28, 320, '2024-03-18 19:15:00'],
-                            [5, 22000, 10, 68, 520, '2024-03-20 20:10:00'],
-                            [1, 8500, 5, 25, 280, '2024-03-19 10:15:00'],
-                            [2, 11200, 6, 35, 360, '2024-03-18 15:20:00'],
-                            [3, 16800, 8, 48, 450, '2024-03-19 13:40:00']
-                        ];
-
-                        gameData.forEach(game => {
-                            insertGame.run(game);
-                        });
-                        insertGame.finalize();
-
-                        console.log('✅ 초기 샘플 데이터 삽입 완료!');
-                    }
-                });
+                // 데이터베이스 초기화 완료 (더미 데이터 없이 깨끗한 상태)
+                console.log('✅ 빈 데이터베이스 초기화 완료! 게임에서 사용자를 등록해보세요.');
             });
 
             resolve(db);

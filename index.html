@@ -973,9 +973,16 @@
             </div>
             
             <div class="input-group">
+                <label class="input-label" for="employeeNumber">사원번호</label>
+                <input type="text" id="employeeNumber" class="player-input"
+                       placeholder="예: 091111"
+                       maxlength="10" autocomplete="off">
+            </div>
+
+            <div class="input-group">
                 <label class="input-label" for="playerName">플레이어 이름</label>
-                <input type="text" id="playerName" class="player-input" 
-                       placeholder="닉네임을 입력하세요 (2-10자)" 
+                <input type="text" id="playerName" class="player-input"
+                       placeholder="닉네임을 입력하세요 (2-10자)"
                        maxlength="10" autocomplete="off">
             </div>
             
@@ -1645,20 +1652,42 @@
             nextContexts = nextCanvases.map(canvas => canvas.getContext('2d'));
 
             // 입력 필드 이벤트
+            const employeeInput = document.getElementById('employeeNumber');
             const playerInput = document.getElementById('playerName');
             const startBtn = document.getElementById('startBtn');
 
+            function checkInputs() {
+                const employeeNumber = employeeInput.value.trim();
+                const playerName = playerInput.value.trim();
+                startBtn.disabled = !(employeeNumber.length >= 2 && playerName.length >= 2);
+            }
+
+            employeeInput.addEventListener('input', checkInputs);
             playerInput.addEventListener('input', function() {
                 const name = this.value.trim();
-                startBtn.disabled = name.length < 2;
                 if (name.length >= 2) {
                     localStorage.setItem('tetris_last_player', name);
+                }
+                checkInputs();
+            });
+
+            employeeInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    const employeeNumber = this.value.trim();
+                    const playerName = playerInput.value.trim();
+                    if (employeeNumber.length >= 2 && playerName.length >= 2) {
+                        startGame();
+                    }
                 }
             });
 
             playerInput.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter' && this.value.trim().length >= 2) {
-                    startGame();
+                if (e.key === 'Enter') {
+                    const employeeNumber = employeeInput.value.trim();
+                    const playerName = this.value.trim();
+                    if (employeeNumber.length >= 2 && playerName.length >= 2) {
+                        startGame();
+                    }
                 }
             });
 
@@ -1676,26 +1705,57 @@
             }
         }
 
-        function startGame() {
+        async function startGame() {
+            const employeeNumber = document.getElementById('employeeNumber').value.trim();
             const playerName = document.getElementById('playerName').value.trim();
-            
+
+            if (employeeNumber.length < 2) {
+                alert('사원번호를 입력해주세요!');
+                return;
+            }
+
             if (playerName.length < 2) {
                 alert('닉네임을 2자 이상 입력해주세요!');
                 return;
             }
 
-            currentPlayer = playerName;
-            document.getElementById('currentPlayerName').textContent = currentPlayer;
-            
-            // 개인 최고 기록 표시
-            const personalBest = rankingSystem.getPlayerBest(currentPlayer);
-            document.getElementById('personalBest').textContent = personalBest.toLocaleString();
+            // 서버에 사용자 등록/로그인
+            try {
+                const response = await fetch('/api/users/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        employeeNumber: employeeNumber,
+                        username: playerName
+                    })
+                });
 
-            // 화면 전환
-            document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('gameScreen').style.display = 'block';
+                if (!response.ok) {
+                    throw new Error('사용자 등록 실패');
+                }
 
-            initializeGame();
+                const data = await response.json();
+                console.log('✅ 사용자 로그인:', data);
+
+                // 사용자 ID 저장 (게임 종료 시 사용)
+                window.currentUserId = data.user.user_id;
+                currentPlayer = playerName;
+                document.getElementById('currentPlayerName').textContent = currentPlayer;
+
+                // 개인 최고 기록 표시 (서버 데이터)
+                const personalBest = data.user.high_score || 0;
+                document.getElementById('personalBest').textContent = personalBest.toLocaleString();
+
+                // 화면 전환
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('gameScreen').style.display = 'block';
+
+                initializeGame();
+
+            } catch (error) {
+                console.error('사용자 등록 오류:', error);
+                alert('서버 연결에 실패했습니다. 다시 시도해주세요.');
+            }
         }
 
         function returnToMenu() {
@@ -1911,10 +1971,6 @@
                         <div class="rank-name">${record.name}</div>
                         <div class="rank-score">${record.score.toLocaleString()}점</div>
                     </div>
-                    <div class="rank-stats">
-                        <div>L.${record.level}</div>
-                        <div>${record.date}</div>
-                    </div>
                 `;
 
                 rankingList.appendChild(rankItem);
@@ -1936,10 +1992,6 @@
                         <div class="rank-info">
                             <div class="rank-name">${currentPlayer}</div>
                             <div class="rank-score">${score.toLocaleString()}점</div>
-                        </div>
-                        <div class="rank-stats">
-                            <div>L.${level}</div>
-                            <div>현재</div>
                         </div>
                     `;
                     rankingList.appendChild(currentPlayerItem);
@@ -2240,40 +2292,111 @@
             return !isValidMove(currentPiece);
         }
 
-        function gameOver() {
+        async function gameOver() {
             gameRunning = false;
             playGameOverSfx();
-            
+
             const elapsed = Math.floor((Date.now() - gameStartTime) / 1000);
             const minutes = Math.floor(elapsed / 60);
             const seconds = elapsed % 60;
             const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-            
-            // 순위 등록
+
+            // 서버에 게임 결과 저장
+            if (window.currentUserId) {
+                try {
+                    const response = await fetch('/api/games', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            userId: window.currentUserId,
+                            score: score,
+                            level: level,
+                            linesCleared: lines,
+                            gameTime: elapsed
+                        })
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        console.log('✅ 게임 결과 저장:', data);
+
+                        // 서버에서 랭킹 데이터 가져오기
+                        const rankingsResponse = await fetch('/api/rankings');
+                        if (rankingsResponse.ok) {
+                            const rankings = await rankingsResponse.json();
+                            console.log('✅ 서버 랭킹 조회:', rankings);
+
+                            // 현재 플레이어 순위 찾기
+                            const myRank = rankings.findIndex(r => r.username === currentPlayer) + 1;
+
+                            // 게임 오버 화면 표시
+                            document.getElementById('finalScore').textContent = score.toLocaleString();
+                            document.getElementById('finalLines').textContent = lines;
+                            document.getElementById('finalTime').textContent = timeString;
+                            document.getElementById('finalRank').textContent = myRank > 0 ? `#${myRank}` : '#-';
+
+                            const isNewRecord = data.isNewHighScore;
+                            const gameOverDiv = document.getElementById('gameOver');
+                            const newRecordBanner = document.getElementById('newRecordBanner');
+
+                            if (isNewRecord && score > 0) {
+                                newRecordBanner.style.display = 'block';
+                                gameOverDiv.classList.add('new-record');
+                            } else {
+                                newRecordBanner.style.display = 'none';
+                                gameOverDiv.classList.remove('new-record');
+                            }
+
+                            gameOverDiv.style.display = 'block';
+
+                            // 순위표 업데이트 (서버 데이터로)
+                            await updateRankingFromServer(rankings);
+                        }
+                    }
+                } catch (error) {
+                    console.error('게임 결과 저장 오류:', error);
+                }
+            }
+
+            // 로컬 순위 시스템 (백업용)
             const finalRank = rankingSystem.addScore(currentPlayer, score, lines, level, elapsed);
             const isNewRecord = rankingSystem.isNewPersonalBest(currentPlayer, score);
-            
-            // 게임 오버 화면 표시
-            document.getElementById('finalScore').textContent = score.toLocaleString();
-            document.getElementById('finalLines').textContent = lines;
-            document.getElementById('finalTime').textContent = timeString;
-            document.getElementById('finalRank').textContent = `#${finalRank}`;
-            
-            const gameOverDiv = document.getElementById('gameOver');
-            const newRecordBanner = document.getElementById('newRecordBanner');
-            
-            if (isNewRecord && score > 0) {
-                newRecordBanner.style.display = 'block';
-                gameOverDiv.classList.add('new-record');
-            } else {
-                newRecordBanner.style.display = 'none';
-                gameOverDiv.classList.remove('new-record');
+
+            // 게임 오버 화면 표시 (서버 저장 실패 시)
+            if (!window.currentUserId) {
+                document.getElementById('finalScore').textContent = score.toLocaleString();
+                document.getElementById('finalLines').textContent = lines;
+                document.getElementById('finalTime').textContent = timeString;
+                document.getElementById('finalRank').textContent = `#${finalRank}`;
+
+                const gameOverDiv = document.getElementById('gameOver');
+                const newRecordBanner = document.getElementById('newRecordBanner');
+
+                if (isNewRecord && score > 0) {
+                    newRecordBanner.style.display = 'block';
+                    gameOverDiv.classList.add('new-record');
+                } else {
+                    newRecordBanner.style.display = 'none';
+                    gameOverDiv.classList.remove('new-record');
+                }
+
+                gameOverDiv.style.display = 'block';
+                updateRankingDisplay();
             }
-            
-            gameOverDiv.style.display = 'block';
-            
-            // 순위표 업데이트
-            updateRankingDisplay();
+        }
+
+        // 서버 랭킹 데이터로 화면 업데이트
+        async function updateRankingFromServer(rankings) {
+            const tbody = document.getElementById('leaderboardEntries');
+            if (tbody) {
+                tbody.innerHTML = rankings.slice(0, 10).map((rank, idx) => `
+                    <tr ${rank.username === currentPlayer ? 'class="current-player"' : ''}>
+                        <td>${idx + 1}</td>
+                        <td>${rank.username}</td>
+                        <td>${rank.high_score.toLocaleString()}</td>
+                    </tr>
+                `).join('');
+            }
         }
 
         function restartGame() {
