@@ -8,42 +8,31 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// CORS 설정 (Vercel 프론트엔드에서 접근 허용)
-const corsOptions = {
-    origin: process.env.FRONTEND_URL || '*',
-    credentials: true,
-    optionsSuccessStatus: 200
-};
-
-app.use(cors(corsOptions));
+// CORS 설정
+app.use(cors({ origin: '*', credentials: true }));
 app.use(bodyParser.json());
 app.use(express.static('.'));
 
-// MariaDB/MySQL 연결 설정
-// AWS RDS 환경 변수 또는 일반 환경 변수 사용
+// MySQL 데이터베이스 연결 설정
 const dbConfig = {
-    host: process.env.RDS_HOSTNAME || process.env.DB_HOST || 'localhost',
-    user: process.env.RDS_USERNAME || process.env.DB_USER || 'root',
-    password: process.env.RDS_PASSWORD || process.env.DB_PASSWORD || '',
-    database: process.env.RDS_DB_NAME || process.env.DB_NAME || 'tetris_game',
+    host: process.env.RDS_HOSTNAME || process.env.DB_HOST,
+    user: process.env.RDS_USERNAME || process.env.DB_USER,
+    password: process.env.RDS_PASSWORD || process.env.DB_PASSWORD,
+    database: process.env.RDS_DB_NAME || process.env.DB_NAME,
     port: process.env.RDS_PORT || process.env.DB_PORT || 3306,
-    connectionLimit: 10,
-    acquireTimeout: 60000,
-    timeout: 60000
+    connectionLimit: 10
 };
 
-// 연결 풀 생성
 const pool = mysql.createPool(dbConfig);
 
 // 데이터베이스 연결 테스트
 async function testConnection() {
     try {
         const connection = await pool.getConnection();
-        console.log('✅ MariaDB 연결 성공!');
+        console.log('✅ MySQL 연결 성공!');
         connection.release();
     } catch (error) {
-        console.error('❌ MariaDB 연결 실패:', error.message);
-        console.log('💡 데이터베이스 설정을 확인하고 setup.sql을 실행해주세요.');
+        console.error('❌ MySQL 연결 실패:', error.message);
     }
 }
 
@@ -241,7 +230,6 @@ app.get('/api/rankings', async (req, res) => {
         const { limit = 10 } = req.query;
         const connection = await pool.getConnection();
 
-        // LIMIT을 쿼리 문자열에 직접 포함 (prepared statement 문제 회피)
         const limitValue = Math.min(Math.max(parseInt(limit) || 10, 1), 100);
         const [rankings] = await connection.query(
             `SELECT
@@ -313,16 +301,14 @@ app.get('/api/stats', async (req, res) => {
     }
 });
 
-// 5. 시스템 로그 API (간단한 구현)
+// 5. 시스템 로그 API
 app.get('/api/logs', async (req, res) => {
     try {
-        // 실제 환경에서는 로그 파일을 읽거나 별도의 로그 테이블을 사용
         const logs = [
             { time: new Date(), level: 'INFO', message: '시스템 정상 작동 중' },
-            { time: new Date(Date.now() - 300000), level: 'INFO', message: 'MariaDB 연결 상태 양호' },
+            { time: new Date(Date.now() - 300000), level: 'INFO', message: 'MySQL 연결 상태 양호' },
             { time: new Date(Date.now() - 600000), level: 'INFO', message: '서버 시작 완료' }
         ];
-
         res.json(logs);
     } catch (error) {
         console.error('로그 조회 오류:', error);

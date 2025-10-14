@@ -1,0 +1,18 @@
+# Elastic Beanstalk 업로드 제외 파일
+.git
+.gitignore
+.env
+node_modules
+*.db
+*.sqlite
+*.log
+claudedocs/
+error/
+tests/
+*.md
+!README.md
+.claude/
+debug_game.js
+simple_test.html
+index_broken_backup.html
+COMPREHENSIVE_E2E_TEST_REPORT.md
