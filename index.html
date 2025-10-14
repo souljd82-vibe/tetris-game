@@ -1145,6 +1145,13 @@
     </div>
 
     <script>
+        // API URL 설정 (환경에 따라 자동 선택)
+        const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:3000'  // 로컬 개발
+            : 'http://tetris-game-env.eba-mzy9akwq.ap-southeast-2.elasticbeanstalk.com';  // AWS Elastic Beanstalk 백엔드 URL
+
+        console.log('🌐 API URL:', API_URL);
+
         // 게임 설정
         const BOARD_WIDTH = 10;
         const BOARD_HEIGHT = 20;
@@ -1721,7 +1728,7 @@
 
             // 서버에 사용자 등록/로그인
             try {
-                const response = await fetch('/api/users/login', {
+                const response = await fetch(`${API_URL}/api/users/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -2304,7 +2311,7 @@
             // 서버에 게임 결과 저장
             if (window.currentUserId) {
                 try {
-                    const response = await fetch('/api/games', {
+                    const response = await fetch(`${API_URL}/api/games`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -2321,7 +2328,7 @@
                         console.log('✅ 게임 결과 저장:', data);
 
                         // 서버에서 랭킹 데이터 가져오기
-                        const rankingsResponse = await fetch('/api/rankings');
+                        const rankingsResponse = await fetch(`${API_URL}/api/rankings`);
                         if (rankingsResponse.ok) {
                             const rankings = await rankingsResponse.json();
                             console.log('✅ 서버 랭킹 조회:', rankings);

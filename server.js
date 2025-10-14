@@ -8,18 +8,25 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 미들웨어 설정
-app.use(cors());
+// CORS 설정 (Vercel 프론트엔드에서 접근 허용)
+const corsOptions = {
+    origin: process.env.FRONTEND_URL || '*',
+    credentials: true,
+    optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
 app.use(bodyParser.json());
 app.use(express.static('.'));
 
-// MariaDB 연결 설정
+// MariaDB/MySQL 연결 설정
+// AWS RDS 환경 변수 또는 일반 환경 변수 사용
 const dbConfig = {
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'tetris_game',
-    port: process.env.DB_PORT || 3306,
+    host: process.env.RDS_HOSTNAME || process.env.DB_HOST || 'localhost',
+    user: process.env.RDS_USERNAME || process.env.DB_USER || 'root',
+    password: process.env.RDS_PASSWORD || process.env.DB_PASSWORD || '',
+    database: process.env.RDS_DB_NAME || process.env.DB_NAME || 'tetris_game',
+    port: process.env.RDS_PORT || process.env.DB_PORT || 3306,
     connectionLimit: 10,
     acquireTimeout: 60000,
     timeout: 60000
@@ -234,7 +241,9 @@ app.get('/api/rankings', async (req, res) => {
         const { limit = 10 } = req.query;
         const connection = await pool.getConnection();
 
-        const [rankings] = await connection.execute(
+        // LIMIT을 쿼리 문자열에 직접 포함 (prepared statement 문제 회피)
+        const limitValue = Math.min(Math.max(parseInt(limit) || 10, 1), 100);
+        const [rankings] = await connection.query(
             `SELECT
                 u.username,
                 u.high_score,
@@ -244,8 +253,7 @@ app.get('/api/rankings', async (req, res) => {
             FROM users u
             WHERE u.high_score > 0
             ORDER BY u.high_score DESC
-            LIMIT ?`,
-            [parseInt(limit)]
+            LIMIT ${limitValue}`
         );
 
         connection.release();
