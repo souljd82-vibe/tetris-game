@@ -6,6 +6,7 @@
     <title>테트리스 온라인 - 관리자 페이지</title>
     <meta name="description" content="테트리스 게임 관리자 페이지 - 사용자 관리, 게임 통계, 시스템 모니터링">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>">
+    <script src="/socket.io/socket.io.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
@@ -395,9 +396,142 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+
+        /* Toast 알림 시스템 */
+        .toast-container {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 400px;
+        }
+
+        .toast {
+            background: rgba(0, 191, 255, 0.95);
+            border: 2px solid #00ff88;
+            border-radius: 10px;
+            padding: 15px 20px;
+            color: white;
+            font-family: 'Orbitron', monospace;
+            font-size: 0.9em;
+            box-shadow: 0 5px 20px rgba(0, 191, 255, 0.5);
+            backdrop-filter: blur(10px);
+            animation: slideIn 0.3s ease-out;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toast.success {
+            background: rgba(0, 255, 136, 0.95);
+            border-color: #00bfff;
+        }
+
+        .toast.error {
+            background: rgba(255, 71, 87, 0.95);
+            border-color: #ff4757;
+        }
+
+        .toast.info {
+            background: rgba(0, 191, 255, 0.95);
+            border-color: #00ff88;
+        }
+
+        .toast-icon {
+            font-size: 1.5em;
+        }
+
+        .toast-close {
+            margin-left: auto;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5em;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: opacity 0.3s;
+        }
+
+        .toast-close:hover {
+            opacity: 1;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(120%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(120%);
+                opacity: 0;
+            }
+        }
+
+        .toast.removing {
+            animation: slideOut 0.3s ease-in forwards;
+        }
+
+        /* Loading overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            backdrop-filter: blur(5px);
+        }
+
+        .loading-overlay.active {
+            display: flex;
+        }
+
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid rgba(0, 191, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #00bfff;
+            animation: spin 1s linear infinite;
+        }
+
+        .loading-text {
+            position: absolute;
+            margin-top: 100px;
+            color: #00ff88;
+            font-size: 1.2em;
+            font-weight: 700;
+        }
     </style>
 </head>
 <body>
+    <!-- Toast 알림 컨테이너 -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Loading overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">처리 중...</div>
+    </div>
+
     <!-- 관리자 헤더 -->
     <header class="admin-header">
         <div class="admin-logo">
@@ -498,7 +632,7 @@
                     <div class="table-header">
                         <h2 class="table-title">사용자 목록</h2>
                         <div class="table-controls">
-                            <button class="btn" onclick="addUser()">사용자 추가</button>
+                            <button class="btn" data-testid="add-user-button" onclick="addUser()">사용자 추가</button>
                             <button class="btn" onclick="refreshUsers()">새로고침</button>
                         </div>
                     </div>
@@ -553,10 +687,11 @@
                                 <th>레벨</th>
                                 <th>플레이 시간</th>
                                 <th>날짜</th>
+                                <th>관리</th>
                             </tr>
                         </thead>
                         <tbody id="gamesList">
-                            <tr><td colspan="6" class="loading">데이터를 불러오는 중...</td></tr>
+                            <tr><td colspan="7" class="loading">데이터를 불러오는 중...</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -692,17 +827,17 @@
             <form id="userForm">
                 <div class="form-group">
                     <label class="form-label">사원번호</label>
-                    <input type="text" class="form-input" id="newEmployeeNumber" required placeholder="예: 091111">
+                    <input type="text" class="form-input" id="newEmployeeNumber" data-testid="new-employee-number-input" required placeholder="예: 091111">
                 </div>
                 <div class="form-group">
                     <label class="form-label">사용자명</label>
-                    <input type="text" class="form-input" id="newUsername" required>
+                    <input type="text" class="form-input" id="newUsername" data-testid="new-username-input" required>
                 </div>
                 <div class="form-group">
                     <label class="form-label">초기 점수</label>
                     <input type="number" class="form-input" id="newUserScore" value="0">
                 </div>
-                <button type="submit" class="btn">추가</button>
+                <button type="submit" class="btn" data-testid="submit-user-button">추가</button>
             </form>
         </div>
     </div>
@@ -717,6 +852,7 @@
         };
 
         let currentPage = 'dashboard'; // 현재 페이지 추적 변수
+        let socket = null; // WebSocket 연결
 
         // 페이지 로드 시 초기화
         document.addEventListener('DOMContentLoaded', function() {
@@ -730,14 +866,67 @@
             updateClock();
             setInterval(updateClock, 1000);
 
-            // 자동 새로고침 (10초마다 현재 페이지 데이터 갱신)
+            // WebSocket 연결 초기화
+            initializeWebSocket();
+
+            // 자동 새로고침 (30초마다 - WebSocket이 대부분 처리)
             setInterval(() => {
                 if (currentPage) {
                     console.log(`🔄 자동 새로고침: ${currentPage}`);
                     loadPageData(currentPage);
                 }
-            }, 10000);
+            }, 30000);
         });
+
+        // WebSocket 초기화
+        function initializeWebSocket() {
+            try {
+                socket = io();
+
+                socket.on('connect', () => {
+                    console.log('🔌 WebSocket 연결 성공');
+                    socket.emit('admin-join'); // 관리자 룸 참여
+                    showNotification('실시간 업데이트가 활성화되었습니다.');
+                });
+
+                socket.on('disconnect', () => {
+                    console.log('❌ WebSocket 연결 해제');
+                });
+
+                // 게임 완료 이벤트 수신
+                socket.on('gameCompleted', (data) => {
+                    console.log('🎮 새 게임 완료:', data);
+
+                    const message = `${data.username}님이 게임 완료! 점수: ${data.score.toLocaleString()}`;
+                    if (data.isNewHighScore) {
+                        showNotification(`🏆 ${message} (신기록!)`);
+                    } else {
+                        showNotification(message);
+                    }
+
+                    // 현재 페이지에 따라 데이터 새로고침
+                    if (currentPage === 'dashboard') {
+                        loadRealData().then(() => loadDashboard());
+                    } else if (currentPage === 'games') {
+                        loadRealData().then(() => loadGames());
+                    } else if (currentPage === 'rankings') {
+                        loadRankingsData().then(() => loadRankings());
+                    }
+                });
+
+                // 통계 업데이트 이벤트 수신
+                socket.on('statsUpdated', (data) => {
+                    console.log('📊 통계 업데이트:', data);
+                    // 대시보드가 현재 페이지면 갱신
+                    if (currentPage === 'dashboard') {
+                        loadRealData().then(() => loadDashboard());
+                    }
+                });
+
+            } catch (error) {
+                console.error('WebSocket 초기화 오류:', error);
+            }
+        }
 
         // 관리자 페이지 초기화
         function initializeAdmin() {
@@ -754,9 +943,16 @@
                 });
             });
 
-            // 초기 데이터 로드
-            loadRealData();
+            // 대시보드를 먼저 표시 (빠른 초기 로딩)
             showPage('dashboard');
+
+            // 데이터는 백그라운드에서 로드
+            loadRealData().then(() => {
+                // 데이터 로드 완료 후 현재 페이지 새로고침
+                if (currentPage === 'dashboard') {
+                    loadDashboard();
+                }
+            });
         }
 
         // 시계 업데이트
@@ -817,23 +1013,31 @@
 
         // 대시보드 데이터 로드
         function loadDashboard() {
+            // 현재 접속자 계산 (최근 5분 이내에 게임 플레이한 사용자)
+            const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+            const activeUsers = adminData.games.filter(game =>
+                new Date(game.date) > fiveMinutesAgo
+            ).map(game => game.player)
+             .filter((player, index, self) => self.indexOf(player) === index) // 중복 제거
+             .length;
+
             // 실제 통계 데이터 사용
             if (adminData.stats) {
                 document.getElementById('totalUsers').textContent = adminData.stats.totalUsers || adminData.users.length;
                 document.getElementById('totalGames').textContent = adminData.stats.totalGames || adminData.games.length;
-                document.getElementById('onlineUsers').textContent = adminData.users.length;
+                document.getElementById('onlineUsers').textContent = activeUsers;
                 document.getElementById('highScore').textContent = adminData.stats.highScore ||
                     (adminData.users.length > 0 ? Math.max(...adminData.users.map(u => u.highScore)) : 0);
             } else {
                 document.getElementById('totalUsers').textContent = adminData.users.length;
                 document.getElementById('totalGames').textContent = adminData.games.length;
-                document.getElementById('onlineUsers').textContent = adminData.users.length;
+                document.getElementById('onlineUsers').textContent = activeUsers;
                 document.getElementById('highScore').textContent = adminData.users.length > 0 ?
                     Math.max(...adminData.users.map(u => u.highScore)) : 0;
             }
 
-            // 최근 활동 표시
-            const recentActivity = adminData.games.slice(-5).reverse();
+            // 최근 활동 표시 (API는 이미 최신순으로 정렬되어 있음)
+            const recentActivity = adminData.games.slice(0, 5);
             const tbody = document.getElementById('recentActivity');
             if (recentActivity.length > 0) {
                 tbody.innerHTML = recentActivity.map(game => `
@@ -853,17 +1057,31 @@
         function loadUsers() {
             const tbody = document.getElementById('usersList');
             if (adminData.users.length > 0) {
-                tbody.innerHTML = adminData.users.map((user, index) => `
-                    <tr>
-                        <td>${user.employeeNumber}</td>
+                // 중복 사원번호 감지
+                const employeeNumberCounts = {};
+                adminData.users.forEach(user => {
+                    if (user.employeeNumber) {
+                        employeeNumberCounts[user.employeeNumber] = (employeeNumberCounts[user.employeeNumber] || 0) + 1;
+                    }
+                });
+
+                tbody.innerHTML = adminData.users.map((user, index) => {
+                    // 중복 사원번호인 경우 경고 표시
+                    const isDuplicate = user.employeeNumber && employeeNumberCounts[user.employeeNumber] > 1;
+                    const warningIcon = isDuplicate ? ' <span style="color: #ff4757;" title="동일한 사원번호를 가진 다른 사용자가 있습니다">⚠️</span>' : '';
+
+                    return `
+                    <tr style="${isDuplicate ? 'background: rgba(255, 71, 87, 0.1);' : ''}">
+                        <td>${user.employeeNumber}${warningIcon}</td>
                         <td>${user.name}</td>
                         <td>${formatDate(user.joinDate)}</td>
                         <td>${(user.highScore || 0).toLocaleString()}</td>
                         <td>
-                            <button class="btn btn-danger" onclick="deleteUser(${user.id}, '${user.name}')">삭제</button>
+                            <button class="btn btn-danger" data-testid="delete-user-button" data-user-id="${user.id}" onclick="deleteUser(${user.id}, '${user.name}')">삭제</button>
                         </td>
                     </tr>
-                `).join('');
+                `;
+                }).join('');
             } else {
                 tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #88ccff;">등록된 사용자가 없습니다.</td></tr>';
             }
@@ -880,14 +1098,41 @@
             const tbody = document.getElementById('gamesList');
             tbody.innerHTML = adminData.games.slice(-10).reverse().map(game => `
                 <tr>
-                    <td>${game.employeeNumber}</td>
+                    <td>${game.employeeNumber || '-'}</td>
                     <td>${game.player}</td>
                     <td style="color: #00ff88; font-weight: bold;">${game.score.toLocaleString()}</td>
                     <td>Lv.${game.level}</td>
                     <td>${game.duration}</td>
                     <td>${formatDate(game.date)}</td>
+                    <td>
+                        <button class="btn btn-danger" style="padding: 4px 8px; font-size: 0.75em;" onclick="deleteGameRecord(${game.id})">삭제</button>
+                    </td>
                 </tr>
             `).join('');
+        }
+
+        // 개별 게임 기록 삭제
+        async function deleteGameRecord(recordId) {
+            if (confirm('이 게임 기록을 삭제하시겠습니까?')) {
+                try {
+                    const response = await fetch(`/api/games/${recordId}`, {
+                        method: 'DELETE'
+                    });
+
+                    if (response.ok) {
+                        showNotification('게임 기록이 삭제되었습니다.');
+                        await loadRealData();
+                        if (currentPage === 'games') {
+                            loadGames();
+                        }
+                    } else {
+                        throw new Error('게임 기록 삭제 요청 실패');
+                    }
+                } catch (error) {
+                    console.error('게임 기록 삭제 오류:', error);
+                    showNotification('게임 기록 삭제에 실패했습니다.');
+                }
+            }
         }
 
         // 랭킹 표시 모드 전역 변수
@@ -917,7 +1162,7 @@
                 if (rankingMode === 'all') {
                     // 전체 게임 기록 모드
                     adminData.allRankings = rankings.map(r => ({
-                        recordId: r.record_id,
+                        recordId: r.game_id,
                         employeeNumber: r.employee_number,
                         player: r.username,
                         score: r.score,
@@ -1036,20 +1281,36 @@
             document.getElementById('scoreMultiplier').value = settings.scoreMultiplier || 1;
         }
 
-        // 실제 API 데이터 로드
+        // 실제 API 데이터 로드 (병렬 처리로 속도 개선)
         async function loadRealData() {
             console.log('🔄 API 데이터 로드 시작...');
 
             try {
-                // 사용자 데이터 로드
-                console.log('📥 사용자 데이터 로드 중...');
-                const usersResponse = await fetch('/api/users');
-                if (!usersResponse.ok) {
-                    throw new Error(`Users API 오류: ${usersResponse.status}`);
-                }
-                const users = await usersResponse.json();
-                console.log('✅ 사용자 데이터:', users);
+                // 모든 API를 병렬로 호출
+                const [usersResponse, gamesResponse, statsResponse, logsResponse] = await Promise.all([
+                    fetch('/api/users'),
+                    fetch('/api/games'),
+                    fetch('/api/stats'),
+                    fetch('/api/logs')
+                ]);
 
+                // 응답 상태 확인
+                if (!usersResponse.ok) throw new Error(`Users API 오류: ${usersResponse.status}`);
+                if (!gamesResponse.ok) throw new Error(`Games API 오류: ${gamesResponse.status}`);
+                if (!statsResponse.ok) throw new Error(`Stats API 오류: ${statsResponse.status}`);
+                if (!logsResponse.ok) throw new Error(`Logs API 오류: ${logsResponse.status}`);
+
+                // 모든 JSON 파싱을 병렬로 처리
+                const [users, games, stats, logs] = await Promise.all([
+                    usersResponse.json(),
+                    gamesResponse.json(),
+                    statsResponse.json(),
+                    logsResponse.json()
+                ]);
+
+                console.log('✅ 모든 API 데이터 로드 완료');
+
+                // 데이터 변환 및 저장
                 adminData.users = users.map(user => ({
                     id: user.user_id,
                     employeeNumber: user.employee_number,
@@ -1059,17 +1320,8 @@
                     totalGames: user.total_games || 0
                 }));
 
-                // 게임 데이터 로드
-                console.log('📥 게임 데이터 로드 중...');
-                const gamesResponse = await fetch('/api/games');
-                if (!gamesResponse.ok) {
-                    throw new Error(`Games API 오류: ${gamesResponse.status}`);
-                }
-                const games = await gamesResponse.json();
-                console.log('✅ 게임 데이터:', games);
-
                 adminData.games = games.map(game => ({
-                    id: game.record_id,
+                    id: game.game_id,
                     employeeNumber: game.employee_number,
                     player: game.username,
                     score: game.score,
@@ -1078,29 +1330,13 @@
                     level: game.level_reached
                 }));
 
-                // 랭킹 데이터 로드 (현재 모드에 따라)
-                console.log('📥 랭킹 데이터 로드 중...');
+                adminData.stats = stats;
+                adminData.systemLogs = logs;
+
+                // 랭킹 데이터는 별도 로드 (모드에 따라 다르므로)
                 await loadRankingsData();
 
-                // 통계 데이터 로드
-                console.log('📥 통계 데이터 로드 중...');
-                const statsResponse = await fetch('/api/stats');
-                if (!statsResponse.ok) {
-                    throw new Error(`Stats API 오류: ${statsResponse.status}`);
-                }
-                adminData.stats = await statsResponse.json();
-                console.log('✅ 통계 데이터:', adminData.stats);
-
-                // 시스템 로그 로드
-                console.log('📥 로그 데이터 로드 중...');
-                const logsResponse = await fetch('/api/logs');
-                if (!logsResponse.ok) {
-                    throw new Error(`Logs API 오류: ${logsResponse.status}`);
-                }
-                adminData.systemLogs = await logsResponse.json();
-                console.log('✅ 로그 데이터:', adminData.systemLogs);
-
-                console.log('🎉 모든 데이터 로드 완료!');
+                console.log('🎉 모든 데이터 처리 완료!');
 
             } catch (error) {
                 console.error('❌ 데이터 로드 실패:', error);
@@ -1500,10 +1736,49 @@
             }
         });
 
-        // 알림 표시
-        function showNotification(message) {
-            // 간단한 알림 (실제로는 toast 라이브러리 사용 권장)
-            alert(message);
+        // Toast 알림 표시
+        function showNotification(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+
+            const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️';
+
+            toast.innerHTML = `
+                <span class="toast-icon">${icon}</span>
+                <span>${message}</span>
+                <button class="toast-close" onclick="removeToast(this.parentElement)">&times;</button>
+            `;
+
+            container.appendChild(toast);
+
+            // 5초 후 자동 제거
+            setTimeout(() => {
+                removeToast(toast);
+            }, 5000);
+        }
+
+        function removeToast(toast) {
+            if (!toast) return;
+            toast.classList.add('removing');
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.parentElement.removeChild(toast);
+                }
+            }, 300);
+        }
+
+        // 로딩 오버레이 표시/숨김
+        function showLoading(text = '처리 중...') {
+            const overlay = document.getElementById('loadingOverlay');
+            const textElement = overlay.querySelector('.loading-text');
+            textElement.textContent = text;
+            overlay.classList.add('active');
+        }
+
+        function hideLoading() {
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.classList.remove('active');
         }
 
         // 모달 외부 클릭 시 닫기

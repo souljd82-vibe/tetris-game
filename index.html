@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <title>테트리스 온라인 - 멀티플레이어 랭킹</title>
     <meta name="description" content="친구들과 함께 테트리스 순위를 겨뤄보세요! 실시간 랭킹 시스템과 개인 기록 관리 기능 제공.">
     <meta name="keywords" content="테트리스, 멀티플레이어, 순위, 랭킹, 온라인게임">
@@ -43,30 +43,31 @@
             background: rgba(30, 50, 100, 0.3);
             border: 3px solid #00bfff;
             border-radius: 20px;
-            padding: 40px;
+            padding: 30px;
             text-align: center;
             box-shadow: 0 0 30px rgba(0, 191, 255, 0.6);
             backdrop-filter: blur(15px);
-            max-width: 400px;
+            max-width: 320px;
             width: 90%;
         }
 
         .login-title {
-            font-size: 2.2em;
+            font-size: 1.8em;
             font-weight: 900;
             background: linear-gradient(45deg, #00ff88, #00bfff);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             text-shadow: 0 0 30px rgba(0, 191, 255, 0.8);
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             white-space: nowrap;
         }
 
         .login-subtitle {
-            font-size: 1.1em;
+            font-size: 0.85em;
             color: #88ccff;
-            margin-bottom: 30px;
-            line-height: 1.5;
+            margin-bottom: 20px;
+            line-height: 1.4;
+            word-break: keep-all;
         }
 
         .input-group {
@@ -154,6 +155,7 @@
 
         .player-info {
             font-size: 1em;
+            font-weight: 900;
             color: #ffff00;
             text-shadow: 0 0 10px rgba(255, 255, 0, 0.8);
             display: flex;
@@ -968,13 +970,14 @@
         <div class="login-container">
             <div class="login-title">🏆 SBI테트리스</div>
             <div class="login-subtitle">
-                친구들과 함께 순위를 겨뤄보세요!<br>
-                실시간 랭킹 시스템으로 최고 점수에 도전하세요.
+                친구들과 순위를 겨뤄보세요!<br>
+                실시간 랭킹으로 최고 점수 도전!
             </div>
             
             <div class="input-group">
                 <label class="input-label" for="employeeNumber">사원번호</label>
                 <input type="text" id="employeeNumber" class="player-input"
+                       data-testid="employee-number-input"
                        placeholder="예: 091111"
                        maxlength="10" autocomplete="off">
             </div>
@@ -982,17 +985,41 @@
             <div class="input-group">
                 <label class="input-label" for="playerName">플레이어 이름</label>
                 <input type="text" id="playerName" class="player-input"
+                       data-testid="username-input"
                        placeholder="닉네임을 입력하세요 (2-10자)"
                        maxlength="10" autocomplete="off">
             </div>
             
-            <button class="start-btn" id="startBtn" onclick="startGame()">
+            <button class="start-btn" id="startBtn" data-testid="start-game-button" onclick="startGame()">
                 🎮 게임 시작
             </button>
             
             <div style="margin-top: 20px; font-size: 12px; color: #666;">
                 기록은 브라우저에 로컬 저장됩니다
             </div>
+        </div>
+    </div>
+
+    <!-- 새로고침 선택 화면 -->
+    <div class="login-screen" id="refreshScreen" style="display: none;">
+        <div class="login-container">
+            <div class="login-title">🎮 SBI테트리스</div>
+            <div class="login-subtitle">
+                <span id="welcomeBackName"></span>님, 환영합니다!<br>
+                무엇을 하시겠습니까?
+            </div>
+
+            <button class="start-btn" onclick="continueGame()" style="margin-bottom: 15px;">
+                ▶️ 게임 계속하기
+            </button>
+
+            <button class="start-btn" onclick="newGame()" style="margin-bottom: 15px; background: linear-gradient(135deg, #00ff88, #00bfff);">
+                🎮 새 게임 시작
+            </button>
+
+            <button class="start-btn" onclick="logout()" style="background: linear-gradient(135deg, #ff4757, #ff6b81);">
+                🚪 로그아웃
+            </button>
         </div>
     </div>
 
@@ -1030,11 +1057,17 @@
                         <span class="stat-value" id="currentRank">-</span>
                     </div>
                 </div>
+
+                <div class="score-section">
+                    <div class="section-title">SCORE</div>
+                    <div class="score-main" id="score">0</div>
+                    <div style="font-size: 10px; color: #88ccff;">개인 최고: <span id="personalBest">0</span></div>
+                </div>
             </div>
 
             <!-- 게임 보드 -->
             <div class="game-board-container panel">
-                <canvas id="gameBoard" class="game-board" width="300" height="600"></canvas>
+                <canvas id="gameBoard" class="game-board" width="240" height="480"></canvas>
                 <!-- 게임 보드 내 레벨 업 오버레이 -->
                 <div class="level-up-overlay" id="levelUpOverlay">
                     <div class="level-up-overlay-content">
@@ -1067,19 +1100,13 @@
                         <canvas id="nextPiece4" class="next-piece" width="55" height="40"></canvas>
                     </div>
                 </div>
-                
+
                 <!-- 미션 섹션 -->
                 <div class="mission-section">
                     <div class="section-title">MISSION</div>
                     <div id="currentMission" class="current-mission">
                         <div class="mission-title">미션 로딩 중...</div>
                     </div>
-                </div>
-                
-                <div class="score-section">
-                    <div class="section-title">SCORE</div>
-                    <div class="score-main" id="score">0</div>
-                    <div style="font-size: 10px; color: #88ccff;">개인 최고: <span id="personalBest">0</span></div>
                 </div>
             </div>
 
@@ -1155,9 +1182,9 @@
         // 게임 설정
         const BOARD_WIDTH = 10;
         const BOARD_HEIGHT = 20;
-        let BLOCK_SIZE = 30;
-        let CANVAS_WIDTH = 300;
-        let CANVAS_HEIGHT = 600;
+        let BLOCK_SIZE = 24;
+        let CANVAS_WIDTH = 240;
+        let CANVAS_HEIGHT = 480;
 
         // 전역 변수
         let currentPlayer = '';
@@ -1316,35 +1343,31 @@
         // 순위 관리
         class RankingSystem {
             constructor() {
-                this.rankings = this.loadRankings();
+                this.rankings = [];
+                this.loadRankingsFromServer();
             }
 
-            loadRankings() {
-                const saved = localStorage.getItem('tetris_rankings');
-                return saved ? JSON.parse(saved) : [];
+            async loadRankingsFromServer() {
+                try {
+                    const response = await fetch(`${API_URL}/api/rankings?limit=100`);
+                    if (response.ok) {
+                        const serverRankings = await response.json();
+                        this.rankings = serverRankings.map(r => ({
+                            name: r.username,
+                            score: r.high_score,
+                            employeeNumber: r.employee_number,
+                            totalGames: r.total_games
+                        }));
+                        updateRankingDisplay();
+                    }
+                } catch (error) {
+                    console.error('랭킹 로드 오류:', error);
+                    this.rankings = [];
+                }
             }
 
-            saveRankings() {
-                localStorage.setItem('tetris_rankings', JSON.stringify(this.rankings));
-            }
-
-            addScore(playerName, score, lines, level, playTime) {
-                const newRecord = {
-                    name: playerName,
-                    score: score,
-                    lines: lines,
-                    level: level,
-                    playTime: playTime,
-                    date: new Date().toLocaleDateString(),
-                    timestamp: Date.now()
-                };
-
-                this.rankings.push(newRecord);
-                this.rankings.sort((a, b) => b.score - a.score);
-                this.rankings = this.rankings.slice(0, 100); // 상위 100명만 유지
-                this.saveRankings();
-
-                return this.getCurrentRank(playerName, score);
+            async refreshRankings() {
+                await this.loadRankingsFromServer();
             }
 
             getCurrentRank(playerName, currentScore) {
@@ -1353,8 +1376,8 @@
             }
 
             getPlayerBest(playerName) {
-                const playerRecords = this.rankings.filter(r => r.name === playerName);
-                return playerRecords.length > 0 ? playerRecords[0].score : 0;
+                const playerRecord = this.rankings.find(r => r.name === playerName);
+                return playerRecord ? playerRecord.score : 0;
             }
 
             getTopRankings(limit = 10) {
@@ -1603,20 +1626,20 @@
         
         function setCanvasSize() {
             if (window.innerWidth <= 480) {
-                // 작은 모바일 - 블록 크기 더 크게, 캔버스 더 작게
-                BLOCK_SIZE = 22;
-                CANVAS_WIDTH = 220;
-                CANVAS_HEIGHT = 440;
+                // 작은 모바일
+                BLOCK_SIZE = 18;
+                CANVAS_WIDTH = 180;
+                CANVAS_HEIGHT = 360;
             } else if (window.innerWidth <= 768) {
-                // 태블릿/모바일 - 블록 크기 더 크게, 캔버스 더 작게
-                BLOCK_SIZE = 26;
-                CANVAS_WIDTH = 260;
-                CANVAS_HEIGHT = 520;
+                // 태블릿/모바일
+                BLOCK_SIZE = 20;
+                CANVAS_WIDTH = 200;
+                CANVAS_HEIGHT = 400;
             } else {
-                // PC
-                BLOCK_SIZE = 30;
-                CANVAS_WIDTH = 300;
-                CANVAS_HEIGHT = 600;
+                // PC - 고정 크기
+                BLOCK_SIZE = 24;
+                CANVAS_WIDTH = 240;
+                CANVAS_HEIGHT = 480;
             }
             
             // 캔버스 크기 적용
@@ -1631,8 +1654,33 @@
             setCanvasSize();
             initializeUI();
             initAudio();
-            loadPlayerName();
+
+            // 세션 체크 - 게임이 활성 상태였는지 확인
+            const savedUserId = sessionStorage.getItem('currentUserId') || localStorage.getItem('currentUserId');
+            const savedPlayerName = sessionStorage.getItem('currentPlayer') || localStorage.getItem('currentPlayer');
+            const isGameActive = sessionStorage.getItem('isGameActive') === 'true';
+
+            if (savedUserId && savedPlayerName && isGameActive) {
+                // 게임 중이었던 사용자 - 새로고침 화면 표시
+                document.getElementById('welcomeBackName').textContent = savedPlayerName;
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('refreshScreen').style.display = 'flex';
+                currentPlayer = savedPlayerName;
+                currentUserId = parseInt(savedUserId);
+            } else {
+                // 로그인 화면 표시
+                if (savedUserId && savedPlayerName) {
+                    // 로그인은 했지만 게임 중이 아니었음
+                    currentPlayer = savedPlayerName;
+                    currentUserId = parseInt(savedUserId);
+                }
+                loadPlayerName();
+            }
+
             updateRankingDisplay();
+
+            // 실시간 랭킹 업데이트 시작 (5초마다)
+            startRealtimeRankingUpdates();
         });
         
         // 화면 크기 변경 시 캔버스 크기 재조정
@@ -1712,6 +1760,182 @@
             }
         }
 
+        // 실시간 랭킹 업데이트
+        let rankingUpdateInterval = null;
+
+        function startRealtimeRankingUpdates() {
+            // 기존 인터벌 클리어
+            if (rankingUpdateInterval) {
+                clearInterval(rankingUpdateInterval);
+            }
+
+            // 5초마다 랭킹 업데이트
+            rankingUpdateInterval = setInterval(async () => {
+                await rankingSystem.refreshRankings();
+            }, 5000);
+        }
+
+        function stopRealtimeRankingUpdates() {
+            if (rankingUpdateInterval) {
+                clearInterval(rankingUpdateInterval);
+                rankingUpdateInterval = null;
+            }
+        }
+
+        // 게임 상태 저장 및 복원
+        function saveGameState() {
+            if (!gameRunning) return;
+
+            const gameState = {
+                board: JSON.stringify(board),
+                currentPiece: currentPiece,
+                nextPieces: nextPieces,
+                heldPiece: heldPiece,
+                canHold: canHold,
+                score: score,
+                level: level,
+                lines: lines,
+                dropTime: dropTime,
+                gameStartTime: gameStartTime,
+                completedMissions: completedMissions,
+                timestamp: Date.now()
+            };
+
+            sessionStorage.setItem('gameState', JSON.stringify(gameState));
+        }
+
+        function loadGameState() {
+            const savedState = sessionStorage.getItem('gameState');
+            if (!savedState) return false;
+
+            try {
+                const gameState = JSON.parse(savedState);
+
+                // 5분 이상 지난 상태는 무효화
+                if (Date.now() - gameState.timestamp > 5 * 60 * 1000) {
+                    sessionStorage.removeItem('gameState');
+                    return false;
+                }
+
+                board = JSON.parse(gameState.board);
+                currentPiece = gameState.currentPiece;
+                nextPieces = gameState.nextPieces;
+                heldPiece = gameState.heldPiece;
+                canHold = gameState.canHold;
+                score = gameState.score;
+                level = gameState.level;
+                lines = gameState.lines;
+                dropTime = gameState.dropTime;
+                gameStartTime = gameState.gameStartTime;
+                completedMissions = gameState.completedMissions || [];
+
+                return true;
+            } catch (error) {
+                console.error('게임 상태 로드 실패:', error);
+                sessionStorage.removeItem('gameState');
+                return false;
+            }
+        }
+
+        function clearGameState() {
+            sessionStorage.removeItem('gameState');
+        }
+
+        // 페이지 언로드 시 게임 상태 저장
+        window.addEventListener('beforeunload', function() {
+            if (gameRunning && !gamePaused) {
+                saveGameState();
+            }
+        });
+
+        // 새로고침 화면 버튼 핸들러
+        function continueGame() {
+            // 게임 상태 복원 시도
+            const hasGameState = loadGameState();
+
+            document.getElementById('refreshScreen').style.display = 'none';
+            document.getElementById('gameScreen').style.display = 'block';
+            document.getElementById('currentPlayerName').textContent = currentPlayer;
+
+            if (hasGameState) {
+                // 저장된 게임 상태가 있으면 복원하여 계속
+                gameRunning = true;
+                gamePaused = false;
+
+                // 게임 활성 플래그 설정
+                sessionStorage.setItem('isGameActive', 'true');
+
+                // 화면 업데이트
+                updateDisplay();
+                draw();
+                drawHoldPiece();
+                drawNextPieces();
+
+                // 게임 루프 재시작
+                lastTime = performance.now();
+                requestAnimationFrame(gameLoop);
+
+                console.log('✅ 게임 상태 복원 완료', {score, level, lines});
+            } else {
+                // 저장된 게임이 없으면 게임오버 상태로
+                initBoard();
+                initNextPieces();
+                heldPiece = null;
+                canHold = true;
+                score = 0;
+                lines = 0;
+                level = 1;
+                dropTime = 0;
+
+                updateDisplay();
+                draw();
+                drawHoldPiece();
+                drawNextPieces();
+
+                setTimeout(() => {
+                    showGameOverScreen();
+                }, 100);
+            }
+        }
+
+        function newGame() {
+            // 새 게임 시작
+            document.getElementById('refreshScreen').style.display = 'none';
+            document.getElementById('gameScreen').style.display = 'block';
+            document.getElementById('currentPlayerName').textContent = currentPlayer;
+
+            // 게임오버 화면 숨기기
+            document.getElementById('gameOver').style.display = 'none';
+
+            // 저장된 게임 상태 삭제
+            clearGameState();
+
+            // 게임 초기화 및 시작
+            initializeGame();
+        }
+
+        function logout() {
+            // 로그아웃 - 세션 클리어
+            sessionStorage.removeItem('currentUserId');
+            sessionStorage.removeItem('currentPlayer');
+            sessionStorage.removeItem('isGameActive');
+            localStorage.removeItem('currentUserId');
+            localStorage.removeItem('currentPlayer');
+
+            // 게임 상태 클리어
+            clearGameState();
+
+            currentPlayer = '';
+            currentUserId = null;
+
+            // 실시간 업데이트 중지
+            stopRealtimeRankingUpdates();
+
+            // 로그인 화면으로 이동
+            document.getElementById('refreshScreen').style.display = 'none';
+            document.getElementById('loginScreen').style.display = 'flex';
+        }
+
         async function startGame() {
             const employeeNumber = document.getElementById('employeeNumber').value.trim();
             const playerName = document.getElementById('playerName').value.trim();
@@ -1746,7 +1970,15 @@
 
                 // 사용자 ID 저장 (게임 종료 시 사용)
                 window.currentUserId = data.user.user_id;
+                currentUserId = data.user.user_id;
                 currentPlayer = playerName;
+
+                // 세션 저장 (새로고침 대응)
+                sessionStorage.setItem('currentUserId', currentUserId);
+                sessionStorage.setItem('currentPlayer', currentPlayer);
+                localStorage.setItem('currentUserId', currentUserId);
+                localStorage.setItem('currentPlayer', currentPlayer);
+
                 document.getElementById('currentPlayerName').textContent = currentPlayer;
 
                 // 개인 최고 기록 표시 (서버 데이터)
@@ -1785,11 +2017,14 @@
             gameRunning = true;
             gamePaused = false;
             gameStartTime = Date.now();
-            
+
+            // 게임 활성 플래그 설정
+            sessionStorage.setItem('isGameActive', 'true');
+
             // 미션 시스템 초기화
             completedMissions = [];
             missionSystem.initializeMission();
-            
+
             updateDisplay();
             updateCurrentRank();
             gameLoop();
@@ -1973,7 +2208,7 @@
                 else if (position === 3) positionClass = 'third';
 
                 rankItem.innerHTML = `
-                    <div class="rank-position ${positionClass}">#${position}</div>
+                    <div class="rank-position ${positionClass}">${position}위</div>
                     <div class="rank-info">
                         <div class="rank-name">${record.name}</div>
                         <div class="rank-score">${record.score.toLocaleString()}점</div>
@@ -1995,7 +2230,7 @@
                     const currentPlayerItem = document.createElement('div');
                     currentPlayerItem.className = 'rank-item current-player';
                     currentPlayerItem.innerHTML = `
-                        <div class="rank-position">#${playerRank}</div>
+                        <div class="rank-position">${playerRank}위</div>
                         <div class="rank-info">
                             <div class="rank-name">${currentPlayer}</div>
                             <div class="rank-score">${score.toLocaleString()}점</div>
@@ -2303,6 +2538,10 @@
             gameRunning = false;
             playGameOverSfx();
 
+            // 게임 상태 및 플래그 클리어
+            clearGameState();
+            sessionStorage.removeItem('isGameActive');
+
             const elapsed = Math.floor((Date.now() - gameStartTime) / 1000);
             const minutes = Math.floor(elapsed / 60);
             const seconds = elapsed % 60;
@@ -2358,19 +2597,19 @@
 
                             // 순위표 업데이트 (서버 데이터로)
                             await updateRankingFromServer(rankings);
+
+                            // 게임 화면의 랭킹도 서버 데이터로 새로고침
+                            await rankingSystem.refreshRankings();
                         }
                     }
                 } catch (error) {
                     console.error('게임 결과 저장 오류:', error);
                 }
-            }
+            } else {
+                // 로그인하지 않은 경우 (백업용)
+                const finalRank = rankingSystem.getCurrentRank(currentPlayer, score);
+                const isNewRecord = rankingSystem.isNewPersonalBest(currentPlayer, score);
 
-            // 로컬 순위 시스템 (백업용)
-            const finalRank = rankingSystem.addScore(currentPlayer, score, lines, level, elapsed);
-            const isNewRecord = rankingSystem.isNewPersonalBest(currentPlayer, score);
-
-            // 게임 오버 화면 표시 (서버 저장 실패 시)
-            if (!window.currentUserId) {
                 document.getElementById('finalScore').textContent = score.toLocaleString();
                 document.getElementById('finalLines').textContent = lines;
                 document.getElementById('finalTime').textContent = timeString;
